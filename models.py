@@ -8,13 +8,10 @@ db = SQLAlchemy()
 
 class Users(db.Model, UserMixin):
     id = db.Column(BigInteger, primary_key=True)
-    firstname = db.Column(String(100), nullable=False)
-    middlename = db.Column(String(100))
-    lastname = db.Column(String(100), nullable=False)
     email = db.Column(String(255), nullable=False, unique=True)
-    password= db.Column(String(255), nullable=False)
+    password= db.Column(String(255), nullable=True)
+    user_type_id = db.Column(Integer, ForeignKey('user_types.id'), default=1)
     
-    user_type_id = db.Column(Integer, ForeignKey('user_types.id'))
     user_type = relationship('UserTypes', backref='users')
     
     groups = relationship('Groups', secondary='group_user', back_populates='users')
@@ -22,7 +19,7 @@ class Users(db.Model, UserMixin):
     def __repr__(self):
         return f'<User {self.firstname} {self.lastname}>'
     def get_id(self):
-        return f'U{self.id}'
+        return f'{self.id}'
     def set_password(self, password):
         self.password = generate_password_hash(password)
     def check_password(self, password):
