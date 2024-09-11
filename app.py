@@ -1,11 +1,12 @@
-from flask import Flask, flash, render_template, Response, request, send_file, redirect, url_for, jsonify
+from flask import Flask, flash, render_template, Response, request, send_file, redirect, url_for, jsonify, Blueprint
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from flask_cors import CORS
-from sqlalchemy.orm import aliased, selectinload
 from flask_migrate import Migrate
 from models import *
 import secrets
 import os
+from blueprints.face import face_blueprint
+from blueprints.auth import auth_blueprint
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:@127.0.0.1:3306/project_square'
@@ -22,63 +23,14 @@ login_manager.init_app(app)
 def load_user(user_id):
     return Users.query.get(int(user_id))
 
+app.register_blueprint(face_blueprint, url_prefix='/face')
+app.register_blueprint(auth_blueprint, url_prefix='/auth')
+
+
 @app.route('/')
 def index():
     return "index"
 
-@app.route('/login', methods=['POST'])
-def login():
-    data = request.json
-    email = data.get('email')
-    password = data.get('password')
-
-    if not email or not password:
-        return jsonify({'error': 'Email and password are required'}), 400
-
-    user = Users.query.filter_by(email=email).first()
-    if not user or not user.check_password(password):
-        return jsonify({'error': 'Invalid credentials'}), 401
-
-    # Add security token: JWT
-    login_user(user)
-    
-    user_dict = {"id": user.id, "email": user.email}
-    
-    return jsonify({'user': user_dict}), 200
-
-
-@app.route('/register', methods=['POST'])
-def register():
-    data = request.json
-    email = data.get('email')
-    password = data.get('password')
-
-    if not email or not password:
-        return jsonify({'error': 'Email and password are required'}), 400
-
-    existing_user = Users.query.filter_by(email=email).first()
-    if existing_user:
-        return jsonify({'error': 'User already exists'}), 400
-
-    new_user = Users(
-        email=email
-    )
-    new_user.set_password(password)
-    
-    db.session.add(new_user)
-    db.session.commit()
-    
-    login_user(new_user)
-
-    user_dict = {"id": new_user.id, "email": new_user.email}
-
-    return jsonify({'user': user_dict}), 201
-
-
-@app.route('/logout', methods=['POST'])
-def logout():
-    logout_user()
-    return jsonify({'message': 'Log out successful'}), 200
 
 if __name__ == '__main__':
     with app.app_context():
