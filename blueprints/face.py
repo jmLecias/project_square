@@ -106,8 +106,8 @@ def detect_faces():
         return jsonify({'error': 'No capturedFrames part'}), 400
     
     # Delete previous face detections, if there is any
-    if os.path.exists(DETECTIONS_FOLDER):
-        shutil.rmtree(DETECTIONS_FOLDER)
+    # if os.path.exists(DETECTIONS_FOLDER):
+    #     shutil.rmtree(DETECTIONS_FOLDER)
         
     all_faces_list = []
     

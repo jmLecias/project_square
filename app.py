@@ -5,8 +5,8 @@ from flask_migrate import Migrate
 from models import *
 import secrets
 import os
-from blueprints.face import face_blueprint
 from blueprints.auth import auth_blueprint
+from blueprints.face import face_blueprint
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:@127.0.0.1:3306/project_square'
@@ -23,8 +23,8 @@ login_manager.init_app(app)
 def load_user(user_id):
     return Users.query.get(int(user_id))
 
-app.register_blueprint(face_blueprint, url_prefix='/face')
 app.register_blueprint(auth_blueprint, url_prefix='/auth')
+app.register_blueprint(face_blueprint, url_prefix='/face')
 
 
 @app.route('/')

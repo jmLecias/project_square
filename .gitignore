@@ -3,5 +3,8 @@ env/
 *.pyc
 __pycache__/
 
-# Node
-node_modules/
+
+# images
+faces/
+uploads/
+
