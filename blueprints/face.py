@@ -45,37 +45,30 @@ def recognize_faces():
         os.makedirs(DETECTIONS_FOLDER)
     
     # Loop through every face from detections, crop them using 'facial_area'
-    # Save each detected face temporarily in 'faces/detections'
+    # Save each detected face in 'faces/detections'
+    # 
+    # 
     for face in faces:
+        face_path = face['face_path']
         face_id = face['face_id']
-        face_info = face['face_info']
-        origin = face['origin']
-        facial_area = face_info.get('facial_area', [0, 0, 0, 0])
         
-        frame = cv2.imread(origin)
-        face_img = frame[facial_area[1]:facial_area[3], facial_area[0]:facial_area[2]]
-            
-        new_face_id = f"{face_id}-{int(time.time())}.jpg"
-        temp_face_img_path = os.path.join(DETECTIONS_FOLDER, new_face_id)
-        cv2.imwrite(temp_face_img_path, face_img)
-            
         result = DeepFace.find(
-            img_path=temp_face_img_path, 
+            img_path=face_path, 
             db_path=FACE_DATABASE,
             model_name="ArcFace",
             detector_backend="retinaface",
             enforce_detection=False,
         )
-            
+        
         filtered_result = [df for df in result if not df.empty]
-            
+        
         if filtered_result:
             sorted_result = sorted(filtered_result, key=lambda df: df.iloc[0]['distance'])
             identity = sorted_result[0].iloc[0]['identity']
             accuracy = (1 - sorted_result[0].iloc[0]['distance']) * 100
-            results.append({"detected": new_face_id, "identity": identity, "accuracy": accuracy})
+            results.append({"detected": face_id, "identity": identity, "accuracy": accuracy})
         else:
-            results.append({"detected": new_face_id, "identity": None, "accuracy": 0})
+            results.append({"detected": face_id, "identity": None, "accuracy": 0})
             print(f"Face {face_id} does not have any matches in face database.")
     
     max_accuracies = {}
@@ -124,12 +117,30 @@ def detect_faces():
         # Read save captured_file, detect faces, and save to list
         frame = cv2.imread(captured_path)
         faces = RetinaFace.detect_faces(frame)
-        faces_list = [{"face_id": str(face_id), "face_info": face_info, "origin": captured_path} for face_id, face_info in faces.items()]
+        faces_list = [{"face_id": str(face_id), "face_info": face_info, "origin_path": captured_path, "origin_filename": filename} for face_id, face_info in faces.items()]
         
         # Append faces_list to all_faces_list
         all_faces_list.extend(faces_list)
+    
+    cropped_faces_list = []
+    
+    for face in all_faces_list:
+        face_id = face['face_id']
+        face_info = face['face_info']
+        origin_path = face['origin_path']
+        origin_filename = face['origin_filename']
+        facial_area = face_info.get('facial_area', [0, 0, 0, 0])
         
-    json_data = json.dumps({"faces": all_faces_list}, cls=NumpyArrayEncoder)
+        frame = cv2.imread(origin_path)
+        face_img = frame[facial_area[1]:facial_area[3], facial_area[0]:facial_area[2]]
+            
+        new_face_id = f"{face_id}({origin_filename})-{int(time.time())}.jpg"
+        cropped_face_img_path = os.path.join(DETECTIONS_FOLDER, new_face_id)
+        cv2.imwrite(cropped_face_img_path, face_img)
+        
+        cropped_faces_list.append({"face_path": cropped_face_img_path, "face_id": new_face_id})
+        
+    json_data = json.dumps({"faces": cropped_faces_list}, cls=NumpyArrayEncoder)
     return Response(json_data, mimetype='application/json')
 
 

@@ -30,34 +30,6 @@ def load_user(user_id):
 
 app.register_blueprint(auth_blueprint, url_prefix='/auth')
 app.register_blueprint(face_blueprint, url_prefix='/face')
-
-# @app.route('/auth/login/google')
-# def login_google():
-#     try:
-#         redirect_uri = url_for('authorize_google', _external=True)
-#         return google.authorize_redirect(redirect_uri)
-#     except Exception as e:
-#         app.logger.error(f"Error during login: {str(e)}")
-#         return "Error occured during login", 500
-    
-# @app.route('/auth/authorize/google')
-# def authorize_google():
-#     token = google.authorize_access_token()
-#     userinfo_endpoint = google.server_metadata('userinfo_endpoint')
-#     resp = google.get(userinfo_endpoint)
-#     user_info = resp.json()
-#     email = user_info['email']
-    
-#     user = Users.query.filter_by(email=email).first()
-#     if not user:
-#         user = Users(email=email)
-#         db.session.add(user)
-#         db.session.commit()
-    
-#     session['email'] = email
-#     session['oauth_token'] = token
-    
-#     return "User authorized", 200
     
 
 @app.route('/')
