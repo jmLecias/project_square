@@ -38,7 +38,11 @@ def recognize_faces():
 
     # Get faces and captured_path from request
     data = request.get_json()
-    faces = data.get('faces')
+    faces = data.get('faces')['faces']
+    datetime_str = data.get('datetime')
+    
+    date_object = datetime.strptime(datetime_str, '%B %d, %Y at %I:%M:%S %p') # Sample: September 21, 2024 at 10:30:45 PM
+    print(f'Faces detected on: {date_object}')
     
     # Remake the 'faces/detections' folder if not exists
     if not os.path.exists(DETECTIONS_FOLDER):
@@ -66,9 +70,9 @@ def recognize_faces():
             sorted_result = sorted(filtered_result, key=lambda df: df.iloc[0]['distance'])
             identity = sorted_result[0].iloc[0]['identity']
             accuracy = (1 - sorted_result[0].iloc[0]['distance']) * 100
-            results.append({"detected": face_id, "identity": identity, "accuracy": accuracy})
+            results.append({"detected": face_id, "identity": identity, "accuracy": accuracy, "datetime": datetime_str}) # Recognized face
         else:
-            results.append({"detected": face_id, "identity": None, "accuracy": 0})
+            results.append({"detected": face_id, "identity": None, "accuracy": 0, "datetime": datetime_str}) # Unknown face
             print(f"Face {face_id} does not have any matches in face database.")
     
     max_accuracies = {}
@@ -98,10 +102,7 @@ def detect_faces():
     if 'capturedFrames' not in request.files:
         return jsonify({'error': 'No capturedFrames part'}), 400
     
-    # Delete previous face detections, if there is any
-    # if os.path.exists(DETECTIONS_FOLDER):
-    #     shutil.rmtree(DETECTIONS_FOLDER)
-        
+    
     all_faces_list = []
     
     # If exists, check for its filename
