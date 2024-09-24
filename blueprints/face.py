@@ -1,40 +1,23 @@
-from flask import Flask, render_template, Response, request, send_from_directory, abort, jsonify, Blueprint
+from flask import Response, request, send_from_directory, abort, jsonify, Blueprint
 from flask_cors import CORS
 from deepface import DeepFace
 from retinaface import RetinaFace
 from datetime import datetime
 import time
 import cv2
-import numpy as np
-import pandas as pd
 import os
-import shutil
 import json
 from werkzeug.utils import secure_filename
+from config import CAPTURES_FOLDER, DETECTIONS_FOLDER, FACE_DATABASE
+from utils import NumpyArrayEncoder
+from face_utils import recognize_faces, detect_faces
 
 face_blueprint = Blueprint('face', __name__)
 
-UPLOAD_FOLDER = 'uploads'
-CAPTURES_FOLDER = 'uploads/captures'
-DETECTIONS_FOLDER = 'faces/detections'
-FACE_DATABASE = 'faces/database/class1'
-
-class NumpyArrayEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.integer):
-            return int(obj)
-        elif isinstance(obj, np.floating):
-            return float(obj)
-        elif isinstance(obj, np.ndarray):
-            return obj.tolist()
-        else:
-            return super(NumpyArrayEncoder, self).default(obj)
-        
 
 @face_blueprint.route('/recognize-faces', methods=['POST'])
-def recognize_faces():
+def recognize_faces_route():
     print("Recognizing face...")
-    results = []
 
     # Get faces and captured_path from request
     data = request.get_json()
@@ -44,49 +27,7 @@ def recognize_faces():
     date_object = datetime.strptime(datetime_str, '%B %d, %Y at %I:%M:%S %p') # Sample: September 21, 2024 at 10:30:45 PM
     print(f'Faces detected on: {date_object}')
     
-    # Remake the 'faces/detections' folder if not exists
-    if not os.path.exists(DETECTIONS_FOLDER):
-        os.makedirs(DETECTIONS_FOLDER)
-    
-    # Loop through every face from detections, crop them using 'facial_area'
-    # Save each detected face in 'faces/detections'
-    # 
-    # 
-    for face in faces:
-        face_path = face['face_path']
-        face_id = face['face_id']
-        
-        result = DeepFace.find(
-            img_path=face_path, 
-            db_path=FACE_DATABASE,
-            model_name="ArcFace",
-            detector_backend="retinaface",
-            enforce_detection=False,
-        )
-        
-        filtered_result = [df for df in result if not df.empty]
-        
-        if filtered_result:
-            sorted_result = sorted(filtered_result, key=lambda df: df.iloc[0]['distance'])
-            identity = sorted_result[0].iloc[0]['identity']
-            accuracy = (1 - sorted_result[0].iloc[0]['distance']) * 100
-            results.append({"detected": face_id, "identity": identity, "accuracy": accuracy, "datetime": datetime_str}) # Recognized face
-        else:
-            results.append({"detected": face_id, "identity": None, "accuracy": 0, "datetime": datetime_str}) # Unknown face
-            print(f"Face {face_id} does not have any matches in face database.")
-    
-    max_accuracies = {}
-    for result in results:
-        identity = result['identity']
-        accuracy = result['accuracy']
-        if identity not in max_accuracies or accuracy > max_accuracies[identity]:
-            max_accuracies[identity] = accuracy
-            
-    for result in results:
-        if result['accuracy'] < max_accuracies[result['identity']]:
-            result['identity'] = None
-            result['accuracy'] = 0
-        
+    results = recognize_faces(faces, datetime_str, FACE_DATABASE)
     print(results)
     
     json_data = json.dumps({"results": results}, cls=NumpyArrayEncoder)
@@ -95,52 +36,15 @@ def recognize_faces():
         
 
 @face_blueprint.route('/detect-faces', methods=['POST'])
-def detect_faces():
+def detect_faces_route():
     print("Detecting faces...")
     
     # Check if 'capturedFrame' was sent from request
     if 'capturedFrames' not in request.files:
         return jsonify({'error': 'No capturedFrames part'}), 400
     
+    cropped_faces_list = detect_faces(request.files.getlist('capturedFrames'), CAPTURES_FOLDER)
     
-    all_faces_list = []
-    
-    # If exists, check for its filename
-    for captured_file in request.files.getlist('capturedFrames'):
-        if captured_file.filename == '':
-            return jsonify({'error': 'No selected image'}), 400
-    
-        # Clean the filename, then save to 'uploads/captures'
-        filename = secure_filename(captured_file.filename)
-        captured_path = os.path.join(CAPTURES_FOLDER, filename)
-        captured_file.save(captured_path)
-
-        # Read save captured_file, detect faces, and save to list
-        frame = cv2.imread(captured_path)
-        faces = RetinaFace.detect_faces(frame)
-        faces_list = [{"face_id": str(face_id), "face_info": face_info, "origin_path": captured_path, "origin_filename": filename} for face_id, face_info in faces.items()]
-        
-        # Append faces_list to all_faces_list
-        all_faces_list.extend(faces_list)
-    
-    cropped_faces_list = []
-    
-    for face in all_faces_list:
-        face_id = face['face_id']
-        face_info = face['face_info']
-        origin_path = face['origin_path']
-        origin_filename = face['origin_filename']
-        facial_area = face_info.get('facial_area', [0, 0, 0, 0])
-        
-        frame = cv2.imread(origin_path)
-        face_img = frame[facial_area[1]:facial_area[3], facial_area[0]:facial_area[2]]
-            
-        new_face_id = f"{face_id}({origin_filename})-{int(time.time())}.jpg"
-        cropped_face_img_path = os.path.join(DETECTIONS_FOLDER, new_face_id)
-        cv2.imwrite(cropped_face_img_path, face_img)
-        
-        cropped_faces_list.append({"face_path": cropped_face_img_path, "face_id": new_face_id})
-        
     json_data = json.dumps({"faces": cropped_faces_list}, cls=NumpyArrayEncoder)
     return Response(json_data, mimetype='application/json')
 
@@ -153,7 +57,7 @@ def recognized_face(filename):
         return send_from_directory(directory=FACE_DATABASE, path=filename)
     else:
         abort(404)
-        
+
 
 @face_blueprint.route('/detected-face/<filename>')
 def detected_face(filename):
