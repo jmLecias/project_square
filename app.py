@@ -5,15 +5,22 @@ from flask_migrate import Migrate
 from models import *
 import secrets
 from dotenv import load_dotenv
+from celery import Celery, Task
 
-from blueprints.auth import auth_blueprint, oauth
-from blueprints.face import face_blueprint
+from blueprints.auth_blueprint import auth_blueprint, oauth
+from blueprints.face_blueprint import face_blueprint
 
 # Load env variables from ENV file
 load_dotenv()
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:@127.0.0.1:3306/project_square'
+app.config.from_mapping(
+    CELERY=dict(
+        broker_url="redis://localhost:6379",
+        result_backend="redis://localhost:6379/0",
+    ),
+)
+app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@127.0.0.1:3306/project_square'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = secrets.token_urlsafe(16)
 CORS(app, origins=["http://localhost:3000"])
@@ -24,17 +31,27 @@ migrate = Migrate(app, db)
 login_manager = LoginManager(app)
 login_manager.init_app(app)
 
+def celery_init_app(app: Flask) -> Celery:
+    class FlaskTask(Task):
+        def __call__(self, *args: object, **kwargs: object) -> object:
+            with app.app_context():
+                return self.run(*args, **kwargs)
+
+    celery_app = Celery(app.name, task_cls=FlaskTask)
+    celery_app.config_from_object(app.config["CELERY"])
+    celery_app.set_default()
+    app.extensions["celery"] = celery_app
+    return celery_app
+
+celery = celery_init_app(app)
+
 @login_manager.user_loader
 def load_user(user_id):
     return Users.query.get(int(user_id))
 
+
 app.register_blueprint(auth_blueprint, url_prefix='/auth')
 app.register_blueprint(face_blueprint, url_prefix='/face')
-    
-
-@app.route('/')
-def index():
-    return "index"
 
 
 if __name__ == '__main__':
