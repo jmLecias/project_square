@@ -1,12 +1,15 @@
+from flask import current_app
 from retinaface import RetinaFace
 import cv2
+import json
 from celery import shared_task
 from config import DETECTIONS_FOLDER
 from face_utils import use_recognition_model, identity_max_accuracies, crop_faces
+from redis_con import init_redis
+from celery.exceptions import Ignore
 
-
-@shared_task
-def recognize_faces(faces, datetime_str, face_database_path):
+@shared_task(bind=True)
+def recognize_faces(self, faces, datetime_str, face_database_path):
     results = []
     max_accuracies = {} # temp holder for max accuracy of each detected indentity
     
@@ -26,8 +29,9 @@ def recognize_faces(faces, datetime_str, face_database_path):
     return results
 
 
-@shared_task
-def detect_faces(captured_frames_list):
+@shared_task(bind=True)
+def detect_faces(self, captured_frames_list, location_id):
+    
     all_faces_list = []
     
     for captured_frame in captured_frames_list:
@@ -40,7 +44,7 @@ def detect_faces(captured_frames_list):
                         for face_id, face_info in faces.items()]
         
         all_faces_list.extend(faces_list)
-        
+    
     cropped_faces_list = crop_faces(all_faces_list, DETECTIONS_FOLDER)
-        
+    
     return cropped_faces_list

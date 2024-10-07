@@ -6,7 +6,6 @@ import cv2
 from celery import shared_task
 from werkzeug.utils import secure_filename
 
-
 def use_recognition_model(face, face_database_path):
     face_path = face['face_path']
     face_id = face['face_id']

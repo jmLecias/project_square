@@ -9,6 +9,8 @@ from config import CAPTURES_FOLDER, DETECTIONS_FOLDER, FACE_DATABASE
 from utils import NumpyArrayEncoder
 from face_utils import save_captured_frames
 from face_tasks import recognize_faces, detect_faces
+from redis_con import init_redis
+
 
 face_blueprint = Blueprint('face', __name__)
 
@@ -26,13 +28,7 @@ def recognize_faces_route():
     
     job = recognize_faces.apply_async(args=[faces, datetime_str, FACE_DATABASE], queue='recognition')
     return jsonify({'job_id': job.id}), 201
-    
-    # results = recognize_faces(faces, datetime_str, FACE_DATABASE)
-    
-    # json_data = json.dumps({"results": results}, cls=NumpyArrayEncoder)
-    
-    # return Response(json_data, mimetype='application/json')
-        
+
 
 @face_blueprint.route('/detect-faces', methods=['POST'])
 def detect_faces_route():
@@ -46,16 +42,9 @@ def detect_faces_route():
     
     captured_frames_list = save_captured_frames(captured_frames, CAPTURES_FOLDER)
     
-    job = detect_faces.apply_async(args=[captured_frames_list], queue='detection')
-    print(job.id)
-    
+    # Temporary location id = 1
+    job = detect_faces.apply_async(args=[captured_frames_list, 1], queue='detection')
     return jsonify({'job_id': job.id}), 201
-
-    # cropped_faces_list = detect_faces(request.files.getlist('capturedFrames'), CAPTURES_FOLDER)
-    
-    # json_data = json.dumps({"faces": cropped_faces_list}, cls=NumpyArrayEncoder)
-    
-    # return Response(json_data, mimetype='application/json')
 
 
 @face_blueprint.route('/recognized-face/<filename>')
@@ -96,27 +85,34 @@ def capture():
     return Response(json_data, mimetype='application/json')
 
 
-@face_blueprint.route('/status/detection/<task_id>',  methods=['GET', 'POST'])
-def get_detection_status(task_id):
-    task = AsyncResult(task_id)
-    if task.state == 'SUCCESS':
-        result = task.result
-        json_data = json.dumps({"faces": result}, cls=NumpyArrayEncoder)
-        return Response(json_data, mimetype='application/json')
-    elif task.state == 'FAILURE':
-        return jsonify({'status': 'failed', 'error': str(task.info)}), 500
-    else:
-        return jsonify({'status': task.state})
+
+@face_blueprint.route('/detections/<int:location_id>', methods=['POST', 'GET'])
+def detections_event_stream(location_id):
+    redis_client = init_redis(current_app)
+    def event_stream():
+        channel_name = f'detection_results_{location_id}'
+        pubsub = redis_client.pubsub()
+        pubsub.subscribe(channel_name)
+        
+        for message in pubsub.listen():
+            if message['type'] == 'message':
+                yield 'data: %s\n\n' % json.dumps(message['data'])
+    
+    return Response(event_stream(), mimetype="text/event-stream")
 
 
-@face_blueprint.route('/status/recognition/<task_id>',  methods=['GET', 'POST'])
-def get_recognition_status(task_id):
-    task = AsyncResult(task_id)
-    if task.state == 'SUCCESS':
+@face_blueprint.route('/task-result/<job_id>', methods=['POST', 'GET'])
+def get_task_result(job_id):
+    task = AsyncResult(job_id)
+    
+    if task.state == 'PENDING':
+        return jsonify({'state': 'PENDING', 'status': 'Task is waiting...'}), 200
+    
+    elif task.state != 'FAILURE':
         result = task.result
-        json_data = json.dumps({ "results": result}, cls=NumpyArrayEncoder)
-        return Response(json_data, mimetype='application/json')
-    elif task.state == 'FAILURE':
-        return jsonify({'status': 'failed', 'error': str(task.info)}), 500
+        
+        return jsonify({'state': task.state, 'result': result}), 200 #SUCCESS
+    
     else:
-        return jsonify({'status': task.state})
+        return jsonify({'state': task.state, 'status': str(task.info)}), 500 #FAIL
+
