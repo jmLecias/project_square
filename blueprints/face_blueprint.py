@@ -20,7 +20,7 @@ def recognize_faces_route():
 
     # Get faces and captured_path from request
     data = request.get_json()
-    faces = data.get('faces')['faces']
+    faces = data.get('faces')
     datetime_str = data.get('datetime')
     
     date_object = datetime.strptime(datetime_str, '%B %d, %Y at %I:%M:%S %p') # Sample: September 21, 2024 at 10:30:45 PM
@@ -106,13 +106,15 @@ def get_task_result(job_id):
     task = AsyncResult(job_id)
     
     if task.state == 'PENDING':
-        return jsonify({'state': 'PENDING', 'status': 'Task is waiting...'}), 200
+        json_data = json.dumps({'state': 'PENDING', 'status': 'Task is waiting...'}, cls=NumpyArrayEncoder)
+        return Response(json_data, mimetype='application/json'), 200 # pending
     
     elif task.state != 'FAILURE':
         result = task.result
-        
-        return jsonify({'state': task.state, 'result': result}), 200 #SUCCESS
+        json_data = json.dumps({'state': task.state, 'result': result}, cls=NumpyArrayEncoder)
+        return Response(json_data, mimetype='application/json'), 200 # success
     
     else:
-        return jsonify({'state': task.state, 'status': str(task.info)}), 500 #FAIL
+        json_data = json.dumps({'state': task.state, 'status': str(task.info)}, cls=NumpyArrayEncoder)
+        return Response(json_data, mimetype='application/json'), 500 # fail
 
