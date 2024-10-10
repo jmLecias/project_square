@@ -6,6 +6,26 @@ from werkzeug.security import check_password_hash
 
 groups_blueprint = Blueprint('groups', __name__)
 
+@groups_blueprint.route('/group-locations/<int:group_id>', methods=['GET'])
+def group_locations(group_id):
+    group = Groups.query.filter_by(id=group_id).first()
+    if not group:
+        return jsonify({'error': 'Group does not exist'}), 404
+    
+    group_dict = {
+        "id": group.id, 
+        "name": group.group_name,
+        "code": group.group_code
+    }
+    
+    return jsonify({
+        'group': group_dict,
+        'group_locations': [
+            {'id': location.id, 'name': location.location_name}
+            for location in group.locations
+        ]
+    })
+
 @groups_blueprint.route('/joined-groups/<int:user_id>', methods=['GET'])
 def joined_groups(user_id):
     user = Users.query.filter_by(id=user_id).first()
