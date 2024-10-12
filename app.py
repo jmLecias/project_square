@@ -17,14 +17,14 @@ load_dotenv()
 
 app = Flask(__name__)
 app.config.from_mapping(
-    # CELERY=dict(
-    #     broker_url="redis://localhost:6379", 
-    #     result_backend="redis://localhost:6379", 
-    # ),
     CELERY=dict(
-        broker_url="redis://172.26.127.26:6379", 
-        result_backend="redis://172.26.127.26:6379", # Using Zerotier
+        broker_url="redis://localhost:6379", 
+        result_backend="redis://localhost:6379", 
     ),
+    # CELERY=dict(
+    #     broker_url="redis://172.26.127.26:6379", 
+    #     result_backend="redis://172.26.127.26:6379", # Using Zerotier
+    # ),
 )
 app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@127.0.0.1:3306/project_square'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
