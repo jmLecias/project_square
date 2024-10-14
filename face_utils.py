@@ -5,6 +5,13 @@ from retinaface import RetinaFace
 import cv2
 from celery import shared_task
 from werkzeug.utils import secure_filename
+import os
+
+# Specify which GPU to use
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # Replace with your desired GPU index
+
+# Allow dynamic allocation of GPU memory
+os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 
 def use_recognition_model(face, face_database_path):
     face_path = face['face_path']

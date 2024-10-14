@@ -47,12 +47,12 @@ def detect_faces_route():
     return jsonify({'job_id': job.id}), 201
 
 
-@face_blueprint.route('/recognized-face/<filefolder>/<filename>')
-def recognized_face(filefolder, filename):
-    file_path = os.path.join(FACE_DATABASE, filefolder, filename)
+@face_blueprint.route('/recognized-face/<filename>')
+def recognized_face(filename):
+    file_path = os.path.join(FACE_DATABASE, filename)
     
     if os.path.exists(file_path):
-        return send_from_directory(directory=FACE_DATABASE, path=file_path)
+        return send_from_directory(directory=FACE_DATABASE, path=filename)
     else:
         abort(404)
 

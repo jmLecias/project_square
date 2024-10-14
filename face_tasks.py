@@ -5,7 +5,6 @@ import json
 from celery import shared_task
 from config import DETECTIONS_FOLDER
 from face_utils import use_recognition_model, identity_max_accuracies, crop_faces
-from redis_con import init_redis
 from celery.exceptions import Ignore
 
 @shared_task(bind=True)

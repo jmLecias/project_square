@@ -26,7 +26,8 @@ app.config.from_mapping(
     #     result_backend="redis://172.26.127.26:6379", # Using Zerotier
     # ),
 )
-app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@127.0.0.1:3306/project_square'
+app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@172.26.127.26:3306/project_square'
+# app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@192.168.254.105:3306/project_square'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = secrets.token_urlsafe(16)
 CORS(app, origins=["http://localhost:3000"])

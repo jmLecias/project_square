@@ -1,4 +1,4 @@
-CAPTURES_FOLDER = 'faces/uploads/captures'
+CAPTURES_FOLDER = 'faces/captures'
 DETECTIONS_FOLDER = 'faces/detections'
-FACE_DATABASE = 'faces/database/class2'
+FACE_DATABASE = 'faces/database/class3'
             
