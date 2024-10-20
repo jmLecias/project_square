@@ -7,6 +7,8 @@ __pycache__/
 # images
 faces/
 uploads/
+*.jpg
+*.png
 
 # environment file
 .env

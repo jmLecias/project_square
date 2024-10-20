@@ -6,7 +6,7 @@ from models import *
 import secrets
 from dotenv import load_dotenv
 from celery import Celery, Task
-from redis_con import init_redis
+from flask_redis import FlaskRedis
 
 from blueprints.auth_blueprint import auth_blueprint, oauth
 from blueprints.face_blueprint import face_blueprint
@@ -39,7 +39,9 @@ migrate = Migrate(app, db)
 login_manager = LoginManager(app)
 login_manager.init_app(app)
 
-redis_client = init_redis(app)
+app.config['REDIS_URL'] = 'redis://localhost:6379/0'
+redis_client = FlaskRedis(app)
+
 
 class ContextTask(Task):
     def __call__(self, *args, **kwargs):
