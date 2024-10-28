@@ -11,6 +11,7 @@ from flask_redis import FlaskRedis
 from blueprints.auth_blueprint import auth_blueprint, oauth
 from blueprints.face_blueprint import face_blueprint
 from blueprints.groups_blueprint import groups_blueprint
+from blueprints.bucket_blueprint import bucket_blueprint
 
 # Load env variables from ENV file
 load_dotenv()
@@ -70,6 +71,7 @@ def load_user(user_id):
 app.register_blueprint(auth_blueprint, url_prefix='/auth')
 app.register_blueprint(face_blueprint, url_prefix='/face')
 app.register_blueprint(groups_blueprint, url_prefix='/groups')
+app.register_blueprint(bucket_blueprint, url_prefix='/bucket')
 
 
 if __name__ == '__main__':

@@ -62,7 +62,7 @@ target_embedding = DeepFace.represent(
 
 query_vector = np.array(target_embedding).astype(np.float32).tobytes()
 
-k = 3
+k = 2
 
 base_query = f"*=>[KNN {k} @embedding $query_vector AS distance]"
 query = Query(base_query).return_fields("distance").sort_by("distance").dialect(2)

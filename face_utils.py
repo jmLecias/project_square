@@ -5,13 +5,23 @@ from retinaface import RetinaFace
 import cv2
 from celery import shared_task
 from werkzeug.utils import secure_filename
-import os
+import numpy as np
+from redis.commands.search.query import Query
+import redis
 
 # Specify which GPU to use
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # Replace with your desired GPU index
 
 # Allow dynamic allocation of GPU memory
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
+
+r = redis.Redis(
+    host = "redis-13209.c292.ap-southeast-1-1.ec2.redns.redis-cloud.com",
+    port = 13209,
+    password = "irKVnFOjVdss02m0NV4mBv5bCHfbOoT3",
+    ssl = False,
+)
+
 
 def use_recognition_model(face, face_database_path):
     face_path = face['face_path']
@@ -33,13 +43,54 @@ def use_recognition_model(face, face_database_path):
     return recognition_result
 
 
-def identity_max_accuracies(max_acc_dict, filtered_result, face_id, datetime_str):
-    if filtered_result:
-        sorted_result = sorted(filtered_result, key=lambda df: df.iloc[0]['distance'])
-        identity = sorted_result[0].iloc[0]['identity']
-        accuracy = (1 - sorted_result[0].iloc[0]['distance']) * 100
+def make_query_vector(face):
+    face_path = face['face_path']
+    face_id = face['face_id']
+        
+    target_embedding = DeepFace.represent(
+        img_path=face_path,
+        model_name="ArcFace",
+        enforce_detection=False, 
+        detector_backend="skip"  
+    )[0]["embedding"]
+
+    query_vector = np.array(target_embedding).astype(np.float32).tobytes()
+    
+    result = {
+        "face_id": face_id,
+        "face_vector": query_vector,
+    }
+    
+    return result
+
+
+def get_nearest_neighbors(query_vector, k):
+    base_query = f"*=>[KNN {k} @embedding $query_vector AS distance]"
+    query = Query(base_query).return_fields("distance").sort_by("distance").dialect(2)
+    results = r.ft().search(query, query_params={"query_vector": query_vector})
+
+    return results
+
+
+# def identity_max_accuracies(max_acc_dict, filtered_result, face_id, datetime_str):
+#     if filtered_result:
+#         sorted_result = sorted(filtered_result, key=lambda df: df.iloc[0]['distance'])
+#         identity = sorted_result[0].iloc[0]['identity']
+#         accuracy = (1 - sorted_result[0].iloc[0]['distance']) * 100
             
-        # If identity is in max_accuracies, compare accuracies, and replace max
+#         # If identity is in max_accuracies, compare accuracies, and replace max
+#         max_acc_dict[identity] = max(max_acc_dict.get(identity, 0), accuracy)
+            
+#         return {"detected": face_id, "identity": identity, "accuracy": accuracy, "datetime": datetime_str}
+#     else:
+#         return {"detected": face_id, "identity": None, "accuracy": 0, "datetime": datetime_str}
+
+
+def identity_max_accuracies(max_acc_dict, nearest_neighbors, face_id, datetime_str):
+    if nearest_neighbors and nearest_neighbors.docs:
+        identity = nearest_neighbors.docs[0].id
+        distance = round(float(nearest_neighbors.docs[0].distance), 2)
+        accuracy = (100 - distance) 
         max_acc_dict[identity] = max(max_acc_dict.get(identity, 0), accuracy)
             
         return {"detected": face_id, "identity": identity, "accuracy": accuracy, "datetime": datetime_str}
