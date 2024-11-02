@@ -36,7 +36,7 @@ class UserTypes(db.Model):
         return f'<UserType {self.name}>'
 
 group_user = Table('group_user', db.Model.metadata,
-    Column('group_id', Integer, ForeignKey('groups.id')),
+    Column('group_id', Integer, ForeignKey('groups.id', ondelete='CASCADE')),
     Column('user_id', BigInteger, ForeignKey('users.id'))
 )
 

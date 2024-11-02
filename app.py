@@ -11,6 +11,7 @@ from flask_redis import FlaskRedis
 from blueprints.auth_blueprint import auth_blueprint, oauth
 from blueprints.face_blueprint import face_blueprint
 from blueprints.groups_blueprint import groups_blueprint
+from blueprints.locations_blueprint import locations_blueprint
 from blueprints.bucket_blueprint import bucket_blueprint
 
 # Load env variables from ENV file
@@ -27,7 +28,8 @@ app.config.from_mapping(
     #     result_backend="redis://172.26.127.26:6379", # Using Zerotier
     # ),
 )
-app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@172.26.127.26:3306/project_square'
+app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@localhost:3306/project_square'
+# app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@172.26.127.26:3306/project_square'
 # app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@192.168.254.105:3306/project_square'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = secrets.token_urlsafe(16)
@@ -71,6 +73,7 @@ def load_user(user_id):
 app.register_blueprint(auth_blueprint, url_prefix='/auth')
 app.register_blueprint(face_blueprint, url_prefix='/face')
 app.register_blueprint(groups_blueprint, url_prefix='/groups')
+app.register_blueprint(locations_blueprint, url_prefix='/locations')
 app.register_blueprint(bucket_blueprint, url_prefix='/bucket')
 
 

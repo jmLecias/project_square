@@ -3,14 +3,9 @@ from models import *
 import os
 import boto3
 from botocore.exceptions import NoCredentialsError
+from config import *
 
 bucket_blueprint = Blueprint('bucket', __name__)
-
-AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID')
-AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY')
-AWS_REGION = "ap-southeast-1"
-BUCKET_NAME = 'projectsquare-bucket'
-FOLDER_NAME = 'face-database/'
 
 s3 = boto3.client(
     's3', 

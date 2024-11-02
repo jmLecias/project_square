@@ -12,15 +12,27 @@ def group_locations(group_id):
     if not group:
         return jsonify({'error': 'Group does not exist'}), 404
     
+    owner_dict = {
+        "id": group.owner.id, 
+        "email": group.owner.email,
+    }
+    
     group_dict = {
         "id": group.id, 
         "name": group.group_name,
-        "code": group.group_code
+        "code": group.group_code,
+        "members_count": len(group.members),
+        "locations_count": len(group.locations),
     }
     
     return jsonify({
+        'owner': owner_dict,
         'group': group_dict,
-        'group_locations': [
+        'members': [
+            {'id': member.id, 'email': member.email}
+            for member in group.members
+        ],
+        'locations': [
             {'id': location.id, 'name': location.location_name}
             for location in group.locations
         ]
@@ -119,21 +131,56 @@ def join():
     return jsonify({'group': group_dict}), 200
 
 
+@groups_blueprint.route('/update', methods=['POST'])
+def update():
+    data = request.json
+    new_group_name = data.get('new_group_name')
+    group_id = data.get('group_id')
+
+    if not new_group_name:
+        return jsonify({'error': 'Group name is required'}), 400
+
+    group = Groups.query.filter_by(id=group_id).first()
+    if not group:
+        return jsonify({'error': 'Group does not exist'}), 400
+
+    group.group_name = new_group_name
+    
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()  
+        return jsonify({'error': 'Failed to update group'}), 500    
+    
+    group_dict = {
+        "id": group.id, 
+        "name": group.group_name,
+        "code": group.group_code
+    }
+    
+    return jsonify({'group': group_dict}), 200
+
+
 @groups_blueprint.route('/delete', methods=['POST'])
 def delete():
     data = request.json
     group_id = data.get('group_id')
-    owner_password = data.get('owner_password')
+    user_id = data.get('user_id')
+    group_name = data.get('group_name')
     
-    group = Groups.query.filter_by(group_id=group_id).first()
+    group = Groups.query.filter_by(id=group_id).first()
     if not group:
         return jsonify({'error': 'Group does not exist'}), 404
     
-    if not owner_password:
-        return jsonify({"error": "Owner's password is required when deleting a group"}), 400
+    if not user_id == group.owner.id:
+        return jsonify({"error": "You are not authorized to delete this group!"}), 400
     
-    if not check_password_hash(group.owner.password, owner_password):
-        return jsonify({"error": "You are not authorized to delete this group"}), 401
+    if not group_name:
+        return jsonify({"error": "Group name is required to delete the group!"}), 400
+    
+    if not group_name == group.group_name:
+        return jsonify({"error": "You've entered the group name incorrectly."}), 400
+
     
     db.session.delete(group)
     db.session.commit()
