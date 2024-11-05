@@ -33,7 +33,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@localhost:3306/project_squ
 # app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@192.168.254.105:3306/project_square'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = secrets.token_urlsafe(16)
-CORS(app, origins=["http://localhost:3000"])
+CORS(app)
 
 
 db.init_app(app) 

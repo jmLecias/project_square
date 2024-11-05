@@ -56,7 +56,7 @@ def recognize_faces(self, faces, datetime_str, face_database_path):
 
 
 @shared_task(bind=True)
-def detect_faces(self, captured_frames_list, location_id):
+def detect_faces(self, captured_frames_list):
     
     all_faces_list = []
     

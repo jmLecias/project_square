@@ -43,7 +43,7 @@ def detect_faces_route():
     captured_frames_list = save_captured_frames(captured_frames, CAPTURES_FOLDER)
     
     # Temporary location id = 1
-    job = detect_faces.apply_async(args=[captured_frames_list, 1], queue='detection')
+    job = detect_faces.apply_async(args=[captured_frames_list], queue='detection')
     return jsonify({'job_id': job.id}), 201
 
 
@@ -65,40 +65,6 @@ def detected_face(filename):
         return send_from_directory(directory=DETECTIONS_FOLDER, path=filename)
     else:
         abort(404)
-
-
-@face_blueprint.route('/capture', methods=['POST'])
-def capture():
-    print("Capturing frame...")
-    global cam
-    ret, frame = cam.read()
-
-    if not ret:
-        return "Failed to capture image."
-    
-    if frame is not None:
-        filename = f"{datetime.now().timestamp()}.jpg"
-        cv2.imwrite(os.path.join("static", filename), frame)
-        
-    json_data = json.dumps({"capturedPath": filename}, cls=NumpyArrayEncoder)
-    
-    return Response(json_data, mimetype='application/json')
-
-
-
-@face_blueprint.route('/detections/<int:location_id>', methods=['POST', 'GET'])
-def detections_event_stream(location_id):
-    redis_client = init_redis(current_app)
-    def event_stream():
-        channel_name = f'detection_results_{location_id}'
-        pubsub = redis_client.pubsub()
-        pubsub.subscribe(channel_name)
-        
-        for message in pubsub.listen():
-            if message['type'] == 'message':
-                yield 'data: %s\n\n' % json.dumps(message['data'])
-    
-    return Response(event_stream(), mimetype="text/event-stream")
 
 
 @face_blueprint.route('/task-result/<job_id>', methods=['POST', 'GET'])
