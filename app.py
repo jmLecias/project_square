@@ -2,7 +2,7 @@ from flask import Flask, current_app
 from flask_login import LoginManager
 from flask_cors import CORS
 from flask_migrate import Migrate
-from models import *
+from models import db, Users
 import secrets
 from dotenv import load_dotenv
 from celery import Celery, Task
@@ -28,9 +28,10 @@ app.config.from_mapping(
     #     result_backend="redis://172.26.127.26:6379", # Using Zerotier
     # ),
 )
-app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@localhost:3306/project_square'
-# app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@172.26.127.26:3306/project_square'
-# app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@192.168.254.105:3306/project_square'
+# app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@localhost:3306/project_square'
+# app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@172.26.127.26:3306/project_square' # Zero tier
+# app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@192.168.254.105:3306/project_square' # Globe router
+app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@192.168.1.4:3306/project_square' # APT
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = secrets.token_urlsafe(16)
 CORS(app)

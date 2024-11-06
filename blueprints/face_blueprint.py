@@ -6,9 +6,9 @@ import os
 import json
 from werkzeug.utils import secure_filename
 from config import CAPTURES_FOLDER, DETECTIONS_FOLDER, FACE_DATABASE
-from utils import NumpyArrayEncoder
-from face_utils import save_captured_frames
-from face_tasks import recognize_faces, detect_faces
+from utils.utils import NumpyArrayEncoder
+from utils.face_utils import save_captured_frames
+from tasks.face_tasks import recognize_faces, detect_faces
 from redis_con import init_redis
 
 

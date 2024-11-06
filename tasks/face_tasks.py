@@ -4,7 +4,7 @@ import cv2
 import json
 from celery import shared_task
 from config import DETECTIONS_FOLDER
-from face_utils import *
+from utils.face_utils import *
 from celery.exceptions import Ignore
 
 # @shared_task(bind=True)
