@@ -7,26 +7,6 @@ from config import DETECTIONS_FOLDER
 from utils.face_utils import *
 from celery.exceptions import Ignore
 
-# @shared_task(bind=True)
-# def recognize_faces(self, faces, datetime_str, face_database_path):
-#     results = []
-#     max_accuracies = {} # temp holder for max accuracy of each detected identity
-    
-#     for face in faces:
-#         recognition_result = use_recognition_model(face, face_database_path)
-#         face_id = recognition_result["face_id"]
-#         filtered_result = recognition_result["filtered_result"]
-#         id_max_accuracy = identity_max_accuracies(max_accuracies, filtered_result, face_id, datetime_str)
-#         results.append(id_max_accuracy) 
-    
-#     # Update identities based on maximum accuracies
-#     for result in results:
-#         if result['identity'] and result['accuracy'] < max_accuracies[result['identity']]:
-#             result['identity'] = None
-#             result['accuracy'] = 0
-    
-#     return results
-
 
 @shared_task(bind=True)
 def recognize_faces(self, faces, datetime_str, face_database_path):

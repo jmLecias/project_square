@@ -1,6 +1,6 @@
 from flask import Flask, flash, render_template, Response, request, send_file, redirect, url_for, jsonify, Blueprint
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
-from models import *
+from models import db, Users
 from authlib.integrations.flask_client import OAuth
 import os
 

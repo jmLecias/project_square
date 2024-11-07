@@ -7,7 +7,7 @@ import string
 group_user = Table(
     'group_user', db.Model.metadata,
     Column('group_id', Integer, ForeignKey('groups.id', ondelete='CASCADE')),
-    Column('user_id', BigInteger, ForeignKey('users.id'))
+    Column('user_id', BigInteger, ForeignKey('users.id', ondelete='CASCADE'))
 )
 
 class Groups(db.Model):

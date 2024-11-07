@@ -6,18 +6,41 @@ from models import db, Users
 import secrets
 from dotenv import load_dotenv
 from celery import Celery, Task
+
 from flask_redis import FlaskRedis
+from celery_app import make_celery
 
 from blueprints.auth_blueprint import auth_blueprint, oauth
 from blueprints.face_blueprint import face_blueprint
 from blueprints.groups_blueprint import groups_blueprint
 from blueprints.locations_blueprint import locations_blueprint
 from blueprints.bucket_blueprint import bucket_blueprint
+from blueprints.identity_blueprint import identity_blueprint
 
 # Load env variables from ENV file
 load_dotenv()
 
-app = Flask(__name__)
+def create_app():
+    app = Flask(__name__)
+
+    # app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@localhost:3306/project_square'
+    # app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@172.26.127.26:3306/project_square' # Zero tier
+    # app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@192.168.254.105:3306/project_square' # Globe router
+    app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@192.168.1.4:3306/project_square' # APT
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    
+    app.config['REDIS_URL'] = 'redis://localhost:6379/0'
+
+    login_manager = LoginManager(app)
+    login_manager.init_app(app)
+
+    @login_manager.user_loader
+    def load_user(user_id):
+        return Users.query.get(int(user_id))
+    
+    return (app)
+
+app = create_app()
 app.config.from_mapping(
     CELERY=dict(
         broker_url="redis://localhost:6379", 
@@ -28,35 +51,21 @@ app.config.from_mapping(
     #     result_backend="redis://172.26.127.26:6379", # Using Zerotier
     # ),
 )
-# app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@localhost:3306/project_square'
-# app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@172.26.127.26:3306/project_square' # Zero tier
-# app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@192.168.254.105:3306/project_square' # Globe router
-app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@192.168.1.4:3306/project_square' # APT
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = secrets.token_urlsafe(16)
-CORS(app)
 
+
+CORS(app)
 
 db.init_app(app) 
 oauth.init_app(app)
 migrate = Migrate(app, db)
-login_manager = LoginManager(app)
-login_manager.init_app(app)
-
-app.config['REDIS_URL'] = 'redis://localhost:6379/0'
 redis_client = FlaskRedis(app)
 
-
-class ContextTask(Task):
-    def __call__(self, *args, **kwargs):
-        with current_app.app_context():
-            return super().__call__(*args, **kwargs)
-
-
 def celery_init_app(app: Flask) -> Celery:
-    class FlaskTask(ContextTask):
+    class FlaskTask(Task):
         def __call__(self, *args: object, **kwargs: object) -> object:
-            return self.run(*args, **kwargs)
+            with app.app_context():
+                return self.run(*args, **kwargs)
 
     celery_app = Celery(app.name, task_cls=FlaskTask)
     celery_app.config_from_object(app.config["CELERY"])
@@ -66,16 +75,13 @@ def celery_init_app(app: Flask) -> Celery:
 
 celery = celery_init_app(app)
 
-@login_manager.user_loader
-def load_user(user_id):
-    return Users.query.get(int(user_id))
-
 
 app.register_blueprint(auth_blueprint, url_prefix='/auth')
 app.register_blueprint(face_blueprint, url_prefix='/face')
 app.register_blueprint(groups_blueprint, url_prefix='/groups')
 app.register_blueprint(locations_blueprint, url_prefix='/locations')
 app.register_blueprint(bucket_blueprint, url_prefix='/bucket')
+app.register_blueprint(identity_blueprint, url_prefix='/identity')
 
 
 if __name__ == '__main__':

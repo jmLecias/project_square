@@ -42,7 +42,6 @@ def detect_faces_route():
     
     captured_frames_list = save_captured_frames(captured_frames, CAPTURES_FOLDER)
     
-    # Temporary location id = 1
     job = detect_faces.apply_async(args=[captured_frames_list], queue='detection')
     return jsonify({'job_id': job.id}), 201
 

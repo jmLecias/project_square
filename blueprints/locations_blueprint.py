@@ -1,6 +1,6 @@
 from flask import Flask, flash, render_template, Response, request, send_file, redirect, url_for, jsonify, Blueprint
 from flask_login import current_user
-from models import *
+from models import db, Locations, Groups
 import os
 from werkzeug.security import check_password_hash
 

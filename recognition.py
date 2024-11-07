@@ -5,7 +5,6 @@ import numpy as np
 from tqdm import tqdm
 from redis.commands.search.field import VectorField, TagField
 from redis.commands.search.query import Query
-from app import redis_client
 import redis
 
 r = redis.Redis(
@@ -25,7 +24,7 @@ r = redis.Redis(
 #                 model_name="ArcFace",
 #                 detector_backend="retinaface",
 #             )[0]["embedding"]
-#             embeddings.append((img_path, embedding))
+#             embeddings.append((img_path, embedd.ing))
 
 # print(f'embeddings length: {len(embeddings)}')
  
@@ -38,6 +37,8 @@ r = redis.Redis(
 
 # pipeline_results = pipeline.execute()
 
+
+# THIS SHOULD ONLY BE DONE ONCE
 
 # r.ft().create_index(
 #     [

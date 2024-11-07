@@ -9,10 +9,7 @@ import numpy as np
 from redis.commands.search.query import Query
 import redis
 
-# Specify which GPU to use
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # Replace with your desired GPU index
-
-# Allow dynamic allocation of GPU memory
+os.environ["CUDA_VISIBLE_DEVICES"] = "0" 
 os.environ['TF_FORCE_GPU_ALLOW_GROWTH'] = 'true'
 
 r = redis.Redis(
