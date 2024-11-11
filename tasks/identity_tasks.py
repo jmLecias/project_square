@@ -47,11 +47,14 @@ def save_face_embeddings(face_image_path, unique_key):
     # When saving fails, there must be a way to check redis db if unique_key exists
 
     # Extract face embeddings using ArcFace
-    embedding = DeepFace.represent(
-        img_path=face_image_path,
-        model_name="ArcFace",
-        detector_backend="retinaface",
-    )[0]["embedding"]
+    try:
+         embedding = DeepFace.represent(
+            img_path=face_image_path,
+            model_name="ArcFace",
+            detector_backend="retinaface",
+        )[0]["embedding"]
+    finally:
+        os.remove(face_image_path)
 
      # Put embeddings in Redis Database
     try:
@@ -64,9 +67,7 @@ def save_face_embeddings(face_image_path, unique_key):
         pipeline.execute()
     except Exception as e:
             return (f'Error saving face embeddings {e}')
-    
-    os.remove(face_image_path)
-    
+        
     return (f'Successfully saved face embeddings to redis DB')
 
 # For each face_image of user
@@ -93,15 +94,15 @@ def identity_upload(self, face_image_paths, personal_info, user_id):
         try:
             unique_key = str(uuid.uuid4()) 
             filename = unique_key + ".png"
-            image_key = FOLDER_NAME + f'{user_id}/' + filename
+            bucket_path = FOLDER_NAME + f'{user_id}/' + filename
 
             new_face_image = FaceImages(
                 unique_key = unique_key,
-                filename = image_key,
+                bucket_path = bucket_path,
                 user_id = user_id
             )
                 
-            s3.upload_file(face_image_path, BUCKET_NAME, image_key)
+            s3.upload_file(face_image_path, BUCKET_NAME, bucket_path)
 
             db.session.add(new_face_image)
             db.session.commit()

@@ -10,9 +10,52 @@ from tasks.identity_tasks import identity_upload, save_face_embeddings
 from redis_con import init_redis
 from config import TEMP_FOLDER
 from werkzeug.utils import secure_filename
+from models import db, UserInfos, FaceImages
 import os
+import boto3
+from botocore.exceptions import NoCredentialsError
+from config import *
 
 identity_blueprint = Blueprint('identity', __name__)
+
+s3 = boto3.client(
+    's3', 
+    aws_access_key_id = AWS_ACCESS_KEY_ID,
+    aws_secret_access_key = AWS_SECRET_ACCESS_KEY,
+    region_name = AWS_REGION
+)
+
+@identity_blueprint.route('/get/<int:user_id>', methods=['GET'])
+def get_identity_route(user_id):
+    user_info = UserInfos.query.filter_by(user_id=user_id).first()
+
+    if user_info:
+        user_info_dict = {"id": user_info.id}
+        return jsonify({'user_info': user_info_dict}), 200
+    else:
+        return jsonify({'error': "User has no user info yet!"}), 404
+
+
+@identity_blueprint.route('/get-image/<string:unique_key>', methods=['GET'])
+def get_image_presigned_url(unique_key):
+    face_image = FaceImages.query.filter_by(unique_key=unique_key).first()
+    info = UserInfos.query.filter_by(user_id=face_image.user_id).first()
+
+    try:
+        params = {
+            'Bucket': BUCKET_NAME,
+            'Key': face_image.bucket_path,
+        }
+        presigned_url = s3.generate_presigned_url('get_object', Params=params, ExpiresIn=5)
+        identity_dict = {
+            "url": presigned_url,
+            "name": f"{info.firstname} {info.lastname}"
+        }
+        return jsonify({'identity': identity_dict})
+    except NoCredentialsError:
+        return jsonify({'error': 'AWS credentials not found'}), 401
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @identity_blueprint.route('/upload', methods=['POST'])
@@ -43,7 +86,7 @@ def identity_upload_route():
     }
     
     job = identity_upload.apply_async(args=[face_image_paths, personal_info, user_id], queue='upload')
-
+    
     return jsonify({'job_id': job.id}), 201
 
 
@@ -53,7 +96,7 @@ def save_face_embeddings_route():
     face_image_path = data.get('face_image_path')
     unique_key = data.get('unique_key')
 
-    job = save_face_embeddings.apply_async(args=[face_image_path, unique_key], queue='upload')
+    job = save_face_embeddings.apply_async(args=[face_image_path, unique_key], queue='recognition')
     
     return jsonify({'job_id': job.id}), 200
 

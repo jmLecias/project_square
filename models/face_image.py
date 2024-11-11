@@ -6,7 +6,7 @@ from sqlalchemy.orm import relationship
 class FaceImages(db.Model):
     id = db.Column(Integer, primary_key=True)
     unique_key = db.Column(String(255), nullable=False, unique=True)
-    filename = db.Column(String(255), nullable=False)
+    bucket_path = db.Column(String(255), nullable=False)
     user_id = db.Column(BigInteger, ForeignKey('users.id'))
 
     user = relationship('Users', back_populates='face_images')
