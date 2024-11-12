@@ -7,7 +7,7 @@ class FaceImages(db.Model):
     id = db.Column(Integer, primary_key=True)
     unique_key = db.Column(String(255), nullable=False, unique=True)
     bucket_path = db.Column(String(255), nullable=False)
-    user_id = db.Column(BigInteger, ForeignKey('users.id'))
+    user_id = db.Column(BigInteger, ForeignKey('users.id', ondelete="CASCADE"))
 
     user = relationship('Users', back_populates='face_images')
 

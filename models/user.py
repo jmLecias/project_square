@@ -34,7 +34,7 @@ class UserInfos(db.Model):
     firstname = db.Column(String(255), nullable=False)
     middlename = db.Column(String(255), nullable=False)
     lastname = db.Column(String(255), nullable=False)
-    user_id = db.Column(BigInteger, ForeignKey('users.id'))
+    user_id = db.Column(BigInteger, ForeignKey('users.id', ondelete="CASCADE"))
 
     user = relationship('Users', back_populates='user_info')
     

@@ -27,10 +27,13 @@ s3 = boto3.client(
 
 @identity_blueprint.route('/get/<int:user_id>', methods=['GET'])
 def get_identity_route(user_id):
-    user_info = UserInfos.query.filter_by(user_id=user_id).first()
+    info = UserInfos.query.filter_by(user_id=user_id).first()
 
-    if user_info:
-        user_info_dict = {"id": user_info.id}
+    if info:
+        user_info_dict = {
+            "id": info.id, 
+            "fullname": f"{info.firstname} {info.lastname}"
+        }
         return jsonify({'user_info': user_info_dict}), 200
     else:
         return jsonify({'error': "User has no user info yet!"}), 404
