@@ -18,7 +18,7 @@ class Groups(db.Model):
     
     owner = relationship('Users', back_populates='created_groups')
     members = relationship('Users', secondary='group_user')
-    locations = relationship('Locations', backref='group')
+    locations = relationship('Locations', backref='group', cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<Group {self.group_name}>'

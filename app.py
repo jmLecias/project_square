@@ -1,8 +1,9 @@
 from flask import Flask, current_app
 from flask_login import LoginManager
+from flask.cli import with_appcontext
 from flask_cors import CORS
 from flask_migrate import Migrate
-from models import db, Users
+from models import db, Users, seed_cameras
 import secrets
 from dotenv import load_dotenv
 from celery import Celery, Task
@@ -39,6 +40,13 @@ def create_app():
     def load_user(user_id):
         return Users.query.get(int(user_id))
     
+
+    @app.cli.command('seed-cameras')
+    @with_appcontext
+    def seed_cameras_command():
+        """Seed the cameras data"""
+        seed_cameras()
+    
     return (app)
 
 app = create_app()
@@ -55,7 +63,8 @@ app.config.from_mapping(
 app.config['SECRET_KEY'] = secrets.token_urlsafe(16)
 
 
-CORS(app)
+# CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 db.init_app(app) 
 oauth.init_app(app)
