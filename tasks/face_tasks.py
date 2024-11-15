@@ -1,4 +1,4 @@
-from flask import current_app
+from flask import Flask, current_app
 from retinaface import RetinaFace
 import cv2
 import json
@@ -6,10 +6,18 @@ from celery import shared_task
 from config import DETECTIONS_FOLDER
 from utils.face_utils import *
 from celery.exceptions import Ignore
+from models import db, UserInfos, FaceImages
 
+# Initialize Flask app context (without running the app)
+app = Flask(__name__)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:@192.168.254.102:3306/project_square'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db.init_app(app)
 
 @shared_task(bind=True)
-def recognize_faces(self, faces, datetime_str, face_database_path):
+def recognize_faces(self, faces, datetime_str):
     results = []
     max_accuracies = {} # temp holder for max accuracy of each detected identity
     face_results = {} # temp holder for knn results of each detected face

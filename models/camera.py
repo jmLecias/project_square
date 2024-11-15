@@ -8,7 +8,7 @@ class Cameras(db.Model):
     ip_address = db.Column(String(15), nullable=False)
     camera_name = db.Column(String(100), nullable=False)
     
-    type_id = db.Column(Integer, ForeignKey('camera_types.id'), nullable=True)
+    type_id = db.Column(Integer, ForeignKey('camera_types.id'), nullable=False)
     brand_id = db.Column(Integer, ForeignKey('camera_brands.id'))
     location_id = db.Column(Integer, ForeignKey('locations.id', ondelete='CASCADE'))
 
@@ -34,7 +34,8 @@ class CameraTypes(db.Model):
     type_name = db.Column(String(100), nullable=False)
 
     cameras = relationship('Cameras', back_populates='type')
-
+    detections = relationship('DetectionRecords', back_populates='type')
+    
     def __repr__(self):
         return f'<CameraType {self.type_name}>'
 

@@ -17,7 +17,7 @@ import time
 # Initialize Flask app context (without running the app)
 app = Flask(__name__)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:@192.168.1.4:3306/project_square'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:@192.168.254.102:3306/project_square'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db.init_app(app)

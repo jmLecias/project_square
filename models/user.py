@@ -12,7 +12,10 @@ class Users(db.Model, UserMixin):
     
     user_info = relationship('UserInfos', uselist=False, back_populates='user', cascade="all, delete-orphan")
     face_images = relationship('FaceImages', back_populates='user', cascade="all, delete-orphan")
-
+    
+    detections = relationship('DetectionRecords', back_populates='user')
+    daily_records = relationship('DailyRecords', back_populates='user')
+    
     created_groups = relationship('Groups', back_populates='owner')
     joined_groups = relationship('Groups', secondary='group_user')
 

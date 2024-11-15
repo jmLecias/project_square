@@ -1,5 +1,6 @@
 from flask import Response, request, send_from_directory, abort, jsonify, Blueprint, current_app
 from celery.result import AsyncResult
+from celery import chain
 from datetime import datetime
 import cv2
 import os
@@ -14,35 +15,29 @@ from redis_con import init_redis
 
 face_blueprint = Blueprint('face', __name__)
 
+
 @face_blueprint.route('/recognize-faces', methods=['POST'])
 def recognize_faces_route():
-    print("Recognizing face...")
+    print("Detecting then recognizing faces...")
 
-    # Get faces and captured_path from request
-    data = request.get_json()
-    faces = data.get('faces')
-    datetime_str = data.get('datetime')
+    if 'datetime' not in request.form:
+        return jsonify({'error': 'No datetime part'}), 400
     
-    date_object = datetime.strptime(datetime_str, '%B %d, %Y at %I:%M:%S %p') # Sample: September 21, 2024 at 10:30:45 PM
-    print(f'Faces detected on: {date_object}')
-    
-    job = recognize_faces.apply_async(args=[faces, datetime_str, FACE_DATABASE], queue='recognition')
-    return jsonify({'job_id': job.id}), 201
-
-
-@face_blueprint.route('/detect-faces', methods=['POST'])
-def detect_faces_route():
-    print("Detecting faces...")
-    
-    # Check if 'capturedFrame' was sent from request
     if 'capturedFrames' not in request.files:
         return jsonify({'error': 'No capturedFrames part'}), 400
     
     captured_frames = request.files.getlist('capturedFrames')
-    
     captured_frames_list = save_captured_frames(captured_frames, CAPTURES_FOLDER)
-    
-    job = detect_faces.apply_async(args=[captured_frames_list], queue='detection')
+
+    datetime_str = request.form.getlist('datetime')
+
+    # date_object = datetime.strptime(datetime_str, '%B %d, %Y at %I:%M:%S %p') # Sample: September 21, 2024 at 10:30:45 PM
+    # # print(f'Faces detected on: {date_object}')
+
+    detect_faces_task = detect_faces.s(captured_frames_list).set(queue='detection')
+    recognize_faces_task = recognize_faces.s(datetime_str=datetime_str).set(queue='recognition')
+
+    job = chain(detect_faces_task, recognize_faces_task).apply_async()
     return jsonify({'job_id': job.id}), 201
 
 

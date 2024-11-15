@@ -8,6 +8,7 @@ class Locations(db.Model):
     group_id = db.Column(Integer, ForeignKey('groups.id', ondelete='CASCADE')) 
     
     cameras = relationship('Cameras', backref='location', cascade='all, delete-orphan') 
-
+    detections = relationship('DetectionRecords', back_populates='location')
+    
     def __repr__(self):
         return f'<Location {self.location_name}>'
