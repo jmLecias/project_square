@@ -1,4 +1,3 @@
-from flask import Flask
 from celery import shared_task, group
 import boto3
 from botocore.exceptions import NoCredentialsError
@@ -7,20 +6,15 @@ from celery.exceptions import Ignore
 from models import db, UserInfos, FaceImages
 from redis.commands.search.field import VectorField, TagField
 from redis.commands.search.query import Query
-import redis
 import numpy as np
 from deepface import DeepFace
 import os
 import uuid
 import time
+from utils.redis_utils import redis_db
+from utils.db_utils import initialize_db
 
-# Initialize Flask app context (without running the app)
-app = Flask(__name__)
-
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:@192.168.254.102:3306/project_square'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-db.init_app(app)
+initialize_db()
 
 # Enable GPU
 # os.environ["CUDA_VISIBLE_DEVICES"] = "0" 
@@ -33,20 +27,11 @@ s3 = boto3.client(
     region_name = AWS_REGION
 )
 
-# temporary, will use redis on local redis server instead of online 
-r = redis.Redis(
-    host = "redis-13209.c292.ap-southeast-1-1.ec2.redns.redis-cloud.com",
-    port = 13209,
-    password = "irKVnFOjVdss02m0NV4mBv5bCHfbOoT3",
-    ssl = False,
-)
-
 
 @shared_task
 def save_face_embeddings(face_image_path, unique_key):
     # When saving fails, there must be a way to check redis db if unique_key exists
 
-    # Extract face embeddings using ArcFace
     try:
          embedding = DeepFace.represent(
             img_path=face_image_path,
@@ -56,9 +41,8 @@ def save_face_embeddings(face_image_path, unique_key):
     finally:
         os.remove(face_image_path)
 
-     # Put embeddings in Redis Database
     try:
-        pipeline = r.pipeline(transaction=False)
+        pipeline = redis_db.pipeline(transaction=False)
 
         key = unique_key
         value = np.array(embedding).astype(np.float32).tobytes()
@@ -66,7 +50,7 @@ def save_face_embeddings(face_image_path, unique_key):
 
         pipeline.execute()
     except Exception as e:
-            return (f'Error saving face embeddings {e}')
+        return (f'Error saving face embeddings {e}')
         
     return (f'Successfully saved face embeddings to redis DB')
 

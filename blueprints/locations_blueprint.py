@@ -21,14 +21,29 @@ def group_locations(location_id):
         "id": location.group.id, 
         "name": location.group.group_name
     }
+
+    cameras = [
+        {
+            'id': camera.id, 
+            'name': camera.camera_name, 
+            'ip_address': camera.ip_address
+        }
+        for camera in location.cameras
+    ]
+
+    detections = [
+        {
+            'id': detection.id, 
+            'status': detection.status.status
+        }
+        for detection in location.detections_today
+    ]
     
     return jsonify({
         'group': group_dict,
         'location': location_dict,
-        'cameras': [
-            {'id': camera.id, 'name': camera.camera_name, 'ip_address': camera.ip_address}
-            for camera in location.cameras
-        ]
+        'cameras': cameras,
+        'detections': detections,
     })
 
 

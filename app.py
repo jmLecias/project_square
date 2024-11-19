@@ -3,13 +3,14 @@ from flask_login import LoginManager
 from flask.cli import with_appcontext
 from flask_cors import CORS
 from flask_migrate import Migrate
-from models import db, Users, seed_cameras
+from models import db, Users, seed_cameras, seed_status
 import secrets
 from dotenv import load_dotenv
 from celery import Celery, Task
 
 from flask_redis import FlaskRedis
 from celery_app import make_celery
+from utils.socket_utils import socketio
 
 from blueprints.auth_blueprint import auth_blueprint, oauth
 from blueprints.face_blueprint import face_blueprint
@@ -27,7 +28,7 @@ def create_app():
     # app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@localhost:3306/project_square'
     # app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@172.26.127.26:3306/project_square' # Zero tier
     # app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@192.168.137.224:3306/project_square' # LNU lan
-    app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@192.168.254.102:3306/project_square' # Globe router
+    app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@192.168.254.101:3306/project_square' # Globe router
     # app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@192.168.1.6:3306/project_square' # APT
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
@@ -40,12 +41,17 @@ def create_app():
     def load_user(user_id):
         return Users.query.get(int(user_id))
     
-
     @app.cli.command('seed-cameras')
     @with_appcontext
     def seed_cameras_command():
         """Seed the cameras data"""
         seed_cameras()
+
+    @app.cli.command('seed-detection-status')
+    @with_appcontext
+    def seed_detection_status_command():
+        """Seed the cameras data"""
+        seed_status()
     
     return (app)
 
@@ -64,8 +70,15 @@ app.config['SECRET_KEY'] = secrets.token_urlsafe(16)
 
 
 # CORS(app)
-CORS(app, resources={r"/*": {"origins": "*"}})
+CORS(app, resources={
+    r"/*": {
+        "origins": ["https://official-square.site", "http://localhost:3000"],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    }
+})
 
+socketio.init_app(app)
 db.init_app(app) 
 oauth.init_app(app)
 migrate = Migrate(app, db)

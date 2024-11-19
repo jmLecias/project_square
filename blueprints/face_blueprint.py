@@ -1,64 +1,93 @@
-from flask import Response, request, send_from_directory, abort, jsonify, Blueprint, current_app
+from flask import Response, request, send_from_directory, abort, jsonify, Blueprint, current_app, stream_with_context
 from celery.result import AsyncResult
 from celery import chain
 from datetime import datetime
-import cv2
 import os
 import json
-from werkzeug.utils import secure_filename
+import pytz
 from config import CAPTURES_FOLDER, DETECTIONS_FOLDER, FACE_DATABASE
 from utils.utils import NumpyArrayEncoder
 from utils.face_utils import save_captured_frames
 from tasks.face_tasks import recognize_faces, detect_faces
-from redis_con import init_redis
-
+from utils.redis_utils import redis_client
+from urllib.parse import unquote
+from models import DetectionRecords
 
 face_blueprint = Blueprint('face', __name__)
+
+@face_blueprint.route('/events', methods=['GET'])
+def sse_events():
+    def stream():
+        pubsub = redis_client.pubsub()
+        pubsub.subscribe("detection_events")
+
+        for message in pubsub.listen():
+            if message['type'] == 'message':  # Ignore other message types
+                yield f"data: {message['data']}\n\n"
+
+    response = Response(
+        stream_with_context(stream()),
+        content_type="text/event-stream"
+    )
+    # response.headers["X-Accel-Buffering"] = "no"  # Disable buffering
+
+    return response
 
 
 @face_blueprint.route('/recognize-faces', methods=['POST'])
 def recognize_faces_route():
     print("Detecting then recognizing faces...")
 
-    if 'datetime' not in request.form:
-        return jsonify({'error': 'No datetime part'}), 400
-    
-    if 'capturedFrames' not in request.files:
-        return jsonify({'error': 'No capturedFrames part'}), 400
+    if 'datetime' not in request.form or 'capturedFrames' not in request.files:
+        return jsonify({'error': 'Invalid input'}), 400
     
     captured_frames = request.files.getlist('capturedFrames')
     captured_frames_list = save_captured_frames(captured_frames, CAPTURES_FOLDER)
 
-    datetime_str = request.form.getlist('datetime')
+    location_id = request.form.get('location_id')
+    group_id = request.form.get('group_id')
 
-    # date_object = datetime.strptime(datetime_str, '%B %d, %Y at %I:%M:%S %p') # Sample: September 21, 2024 at 10:30:45 PM
-    # # print(f'Faces detected on: {date_object}')
+    datetime_iso = request.form.get('datetime')
+    datetime_obj = datetime.fromisoformat(datetime_iso.replace("Z", "+00:00"))
 
-    detect_faces_task = detect_faces.s(captured_frames_list).set(queue='detection')
-    recognize_faces_task = recognize_faces.s(datetime_str=datetime_str).set(queue='recognition')
+    local_timezone = pytz.timezone('Asia/Manila')
+    local_datetime = datetime_obj.astimezone(local_timezone)
+
+    detect_faces_task = detect_faces.s(location_id, captured_frames_list, local_datetime).set(queue='detection')
+    recognize_faces_task = recognize_faces.s(location_id=location_id, group_id=group_id).set(queue='recognition')
 
     job = chain(detect_faces_task, recognize_faces_task).apply_async()
     return jsonify({'job_id': job.id}), 201
 
 
-@face_blueprint.route('/recognized-face/<filename>')
-def recognized_face(filename):
-    file_path = os.path.join(FACE_DATABASE, filename)
+
+@face_blueprint.route('/detection-record/<int:detection_id>', methods=['GET'])
+def detection_record(detection_id):
+    detection = DetectionRecords.query.filter_by(id=detection_id).first()
+
+    if not detection:
+        return jsonify({'error': 'Detection record does not exist'}), 404
+
+    detection_dict = {
+        "id": detection.id,
+        "datetime": detection.datetime,
+        "confidence": detection.confidence,
+        "origin_path": detection.origin_path,
+        "detected_path": detection.detected_path,
+        "detected_name": detection.user.user_info.full_name if detection.user and detection.user.user_info else "",
+        "status": detection.status.status,
+        "identity": detection.identity_key
+    }
     
-    if os.path.exists(file_path):
-        return send_from_directory(directory=FACE_DATABASE, path=filename)
-    else:
-        abort(404)
+    return jsonify({'detection': detection_dict}), 200
 
 
-@face_blueprint.route('/detected-face/<filename>')
-def detected_face(filename):
-    file_path = os.path.join(DETECTIONS_FOLDER, filename)
-    
-    if os.path.exists(file_path):
-        return send_from_directory(directory=DETECTIONS_FOLDER, path=filename)
-    else:
-        abort(404)
+@face_blueprint.route('/detected-face/<path:filepath>')
+def detected_face(filepath):
+    decoded_path = unquote(filepath)
+    if os.path.exists(decoded_path):
+        return send_from_directory(directory=os.path.dirname(decoded_path), path=os.path.basename(decoded_path))
+    abort(404)
 
 
 @face_blueprint.route('/task-result/<job_id>', methods=['POST', 'GET'])

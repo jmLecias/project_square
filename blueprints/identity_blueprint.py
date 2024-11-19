@@ -42,7 +42,6 @@ def get_identity_route(user_id):
 @identity_blueprint.route('/get-image/<string:unique_key>', methods=['GET'])
 def get_image_presigned_url(unique_key):
     face_image = FaceImages.query.filter_by(unique_key=unique_key).first()
-    info = UserInfos.query.filter_by(user_id=face_image.user_id).first()
 
     try:
         params = {
@@ -52,7 +51,6 @@ def get_image_presigned_url(unique_key):
         presigned_url = s3.generate_presigned_url('get_object', Params=params, ExpiresIn=5)
         identity_dict = {
             "url": presigned_url,
-            "name": f"{info.firstname} {info.lastname}"
         }
         return jsonify({'identity': identity_dict})
     except NoCredentialsError:

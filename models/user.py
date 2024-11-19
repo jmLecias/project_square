@@ -41,5 +41,10 @@ class UserInfos(db.Model):
 
     user = relationship('Users', back_populates='user_info')
     
+    @property
+    def full_name(self):
+        middle_initial = self.middlename[0] + '.' if self.middlename else ''
+        return f'{self.firstname} {middle_initial} {self.lastname}'
+    
     def __repr__(self):
         return f'<UserInfo {self.lastname}>'

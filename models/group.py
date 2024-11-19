@@ -34,3 +34,17 @@ class Groups(db.Model):
             if not Groups.query.filter_by(group_code=code).first():
                 self.group_code = code
                 break
+            
+    def is_user_in_group(self, user_id):
+        """
+        Check if a user is the owner of the group or a member of the group.
+
+        :param user_id: The ID of the user to check
+        :return: True if the user is the owner or a member, otherwise False
+        """
+        # Check if the user is the owner
+        if self.user_id == user_id:
+            return True
+
+        # Check if the user is in the members list
+        return any(member.id == user_id for member in self.members)
