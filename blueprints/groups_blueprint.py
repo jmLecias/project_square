@@ -2,6 +2,7 @@ from flask import Flask, flash, render_template, Response, request, send_file, r
 from flask_login import current_user
 from models import db, Users, Groups
 import os
+import json
 from werkzeug.security import check_password_hash
 
 groups_blueprint = Blueprint('groups', __name__)
@@ -15,6 +16,8 @@ def group_locations(group_id):
     owner_dict = {
         "id": group.owner.id, 
         "email": group.owner.email,
+        "image": group.owner.identity_image,
+        'name': group.owner.user_info.full_name,
     }
     
     group_dict = {
@@ -29,7 +32,12 @@ def group_locations(group_id):
         'owner': owner_dict,
         'group': group_dict,
         'members': [
-            {'id': member.id, 'email': member.email}
+            {
+                'id': member.id, 
+                'email': member.email, 
+                'name': member.user_info.full_name,
+                'image': member.identity_image,
+            }
             for member in group.members
         ],
         'locations': [
@@ -46,10 +54,18 @@ def joined_groups(user_id):
     
     return jsonify({
         'joined_groups': [
-            {'id': group.id, 'name': group.group_name}
+            {
+                'id': group.id, 
+                'name': group.group_name, 
+                'locations': [
+                    {'id': location.id, 'name': location.location_name}
+                    for location in group.locations
+                ],
+            }
             for group in user.joined_groups
-        ]
+        ],
     })
+
 
 
 @groups_blueprint.route('/created-groups/<int:user_id>', methods=['GET'])
@@ -60,9 +76,17 @@ def created_groups(user_id):
     
     return jsonify({
         'created_groups': [
-            {'id': group.id, 'name': group.group_name, 'code': group.group_code}
+            {
+                'id': group.id, 
+                'name': group.group_name, 
+                'code': group.group_code, 
+                'locations': [
+                    {'id': location.id, 'name': location.location_name}
+                    for location in group.locations
+                ],
+            }
             for group in user.created_groups
-        ]
+        ],
     })
 
 

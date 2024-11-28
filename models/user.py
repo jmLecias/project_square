@@ -1,9 +1,18 @@
 from . import db
 from flask_login import UserMixin
-from sqlalchemy import Column, Integer, String, BigInteger, ForeignKey
+from sqlalchemy import Column, Integer, String, BigInteger, ForeignKey, desc
 from sqlalchemy.orm import relationship
 from werkzeug.security import generate_password_hash, check_password_hash
+import boto3
+from botocore.exceptions import NoCredentialsError
+from config import *
 
+s3 = boto3.client(
+    's3', 
+    aws_access_key_id = AWS_ACCESS_KEY_ID,
+    aws_secret_access_key = AWS_SECRET_ACCESS_KEY,
+    region_name = AWS_REGION
+)
 
 class Users(db.Model, UserMixin):
     id = db.Column(BigInteger, primary_key=True)
@@ -30,6 +39,47 @@ class Users(db.Model, UserMixin):
 
     def check_password(self, password):
         return check_password_hash(self.password, password)
+
+    @property
+    def has_identity(self):
+        """
+        Checks if the user has a linked `user_info` and at least one `face_image`.
+        """
+        return self.user_info is not None and len(self.face_images) > 0
+    
+    @property
+    def identity_image(self):
+        """
+        Returns a pre-signed URL for the user's image from S3.
+        """
+        if not self.face_images:
+            return None  # No face image available
+        
+        # Assuming the first image in the relationship is the one to use
+        face_image = self.face_images[0]
+        try:
+            params = {
+                'Bucket': BUCKET_NAME,
+                'Key': face_image.bucket_path,
+            }
+            presigned_url = s3.generate_presigned_url('get_object', Params=params, ExpiresIn=7200)
+            return presigned_url
+        except NoCredentialsError:
+            return None  # Return None if AWS credentials are missing
+        except Exception as e:
+            print(f"Error generating presigned URL: {e}")
+            return None
+    
+    def latest_detection_matches_type(self, type_id):
+        """
+        Checks if the latest detection record's type_id matches the given type_id.
+        """
+        if not self.detections:
+            return False  # No detections available
+
+        latest_detection = max(self.detections, key=lambda d: d.datetime)
+
+        return latest_detection.type_id == type_id
 
 
 class UserInfos(db.Model):

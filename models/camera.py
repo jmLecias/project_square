@@ -5,15 +5,13 @@ from sqlalchemy.dialects.mysql import SMALLINT
 
 class Cameras(db.Model):
     id = db.Column(Integer, primary_key=True)
-    ip_address = db.Column(String(15), nullable=False)
+    rtsp_url = db.Column(String(255), nullable=False)
     camera_name = db.Column(String(100), nullable=False)
     
     type_id = db.Column(Integer, ForeignKey('camera_types.id'), nullable=False)
-    brand_id = db.Column(Integer, ForeignKey('camera_brands.id'))
     location_id = db.Column(Integer, ForeignKey('locations.id', ondelete='CASCADE'))
 
     type = relationship('CameraTypes', back_populates='cameras')
-    brand = relationship('CameraBrands', back_populates='cameras')
 
     def __repr__(self):
         return f'<Camera {self.camera_name}>'
@@ -24,7 +22,7 @@ class CameraBrands(db.Model):
     port = db.Column(SMALLINT(unsigned=True), nullable=False)
     stream_path = db.Column(String(50), nullable=False)
 
-    cameras = relationship('Cameras', back_populates='brand')
+    # cameras = relationship('Cameras', back_populates='brand')
 
     def __repr__(self):
         return f'<CameraBrand {self.brand_name}>'

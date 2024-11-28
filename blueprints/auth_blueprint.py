@@ -81,7 +81,12 @@ def login():
     # Add security token: JWT
     login_user(user)
     
-    user_dict = {"id": user.id, "email": user.email}
+    user_dict = {
+        "id": user.id, 
+        "email": user.email,
+        "name": user.user_info.full_name if user.user_info else None,
+        "image": user.identity_image if user.has_identity else None
+    }
     
     return jsonify({'user': user_dict}), 200
 

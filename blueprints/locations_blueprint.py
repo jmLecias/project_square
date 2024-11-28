@@ -26,7 +26,9 @@ def group_locations(location_id):
         {
             'id': camera.id, 
             'name': camera.camera_name, 
-            'ip_address': camera.ip_address
+            'rtsp_url': camera.rtsp_url,
+            'location_id': location.id,
+            'group_id': location.group.id,
         }
         for camera in location.cameras
     ]
@@ -45,6 +47,37 @@ def group_locations(location_id):
         'cameras': cameras,
         'detections': detections,
     })
+
+
+@locations_blueprint.route('/location-records-info/<int:location_id>', methods=['GET'])
+def location_records_info(location_id):
+    location = Locations.query.filter_by(id=location_id).first()
+    if not location:
+        return jsonify({'error': 'Location does not exist'}), 404
+    
+    location_dict = {
+        "id": location.id, 
+        "owner_id": location.group.owner.id,
+        "name": location.location_name
+    }
+
+    users = [
+        {
+            'id': location.group.owner.id,
+            'name': location.group.owner.user_info.full_name
+        }
+    ] + [
+        {
+            'id': member.id,
+            'name': member.user_info.full_name
+        }
+         for member in location.group.members if member.has_identity
+    ]
+    
+    return jsonify({
+        'location': location_dict,
+        'users': users,
+    }), 200
 
 
 @locations_blueprint.route('/create', methods=['POST'])

@@ -18,6 +18,8 @@ from blueprints.groups_blueprint import groups_blueprint
 from blueprints.locations_blueprint import locations_blueprint
 from blueprints.bucket_blueprint import bucket_blueprint
 from blueprints.identity_blueprint import identity_blueprint
+from blueprints.records_blueprint import records_blueprint
+from blueprints.cameras_blueprint import cameras_blueprint
 
 # Load env variables from ENV file
 load_dotenv()
@@ -28,8 +30,8 @@ def create_app():
     # app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@localhost:3306/project_square'
     # app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@172.26.127.26:3306/project_square' # Zero tier
     # app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@192.168.137.224:3306/project_square' # LNU lan
-    app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@192.168.254.101:3306/project_square' # Globe router
-    # app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@192.168.1.6:3306/project_square' # APT
+    app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@192.168.254.100:3306/project_square' # Globe router
+    # app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@192.168.1.13:3306/project_square' # APT
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
     app.config['REDIS_URL'] = 'redis://localhost:6379/0'
@@ -105,6 +107,8 @@ app.register_blueprint(groups_blueprint, url_prefix='/groups')
 app.register_blueprint(locations_blueprint, url_prefix='/locations')
 app.register_blueprint(bucket_blueprint, url_prefix='/bucket')
 app.register_blueprint(identity_blueprint, url_prefix='/identity')
+app.register_blueprint(records_blueprint, url_prefix='/records')
+app.register_blueprint(cameras_blueprint, url_prefix='/cameras')
 
 
 if __name__ == '__main__':

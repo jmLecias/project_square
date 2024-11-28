@@ -73,11 +73,6 @@ def recognize_faces(self, faces, location_id, group_id):
         # Commit the updates to the database
         db.session.commit()
 
-        # update = {
-        #     "detection_id": detection_id,
-        #     "location_id": location_id
-        # }
-
         detection_dict = {
             "id": detection_record.id,
             'status': detection_record.status.status,
@@ -102,6 +97,15 @@ def detect_faces(self, location_id, captured_frames_list, datetime):
         faces = RetinaFace.detect_faces(frame)
         faces_list = [{"face_id": str(face_id), "face_info": face_info, "origin_path": captured_frame_path, "origin_filename": captured_frame_filename} 
                         for face_id, face_info in faces.items()]
+        
+        if not faces.items():
+            detection_dict = {
+                "id": None,
+                'status': None,
+                "location_id": location_id
+            }
+
+            redis_client.publish("detection_events", json.dumps(detection_dict))
         
         all_faces_list.extend(faces_list)
     

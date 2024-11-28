@@ -1,9 +1,7 @@
 import os
 import time
 from deepface import DeepFace
-from retinaface import RetinaFace
 import cv2
-from celery import shared_task
 from werkzeug.utils import secure_filename
 import numpy as np
 from config import DETECTIONS_FOLDER
@@ -65,20 +63,6 @@ def get_nearest_neighbors(query_vector, k):
     return results
 
 
-# def identity_max_accuracies(max_acc_dict, filtered_result, face_id, datetime_str):
-#     if filtered_result:
-#         sorted_result = sorted(filtered_result, key=lambda df: df.iloc[0]['distance'])
-#         identity = sorted_result[0].iloc[0]['identity']
-#         accuracy = (1 - sorted_result[0].iloc[0]['distance']) * 100
-            
-#         # If identity is in max_accuracies, compare accuracies, and replace max
-#         max_acc_dict[identity] = max(max_acc_dict.get(identity, 0), accuracy)
-            
-#         return {"detected": face_id, "identity": identity, "accuracy": accuracy, "datetime": datetime_str}
-#     else:
-#         return {"detected": face_id, "identity": None, "accuracy": 0, "datetime": datetime_str}
-
-
 def identity_max_accuracies(max_conf_dict, nearest_neighbors, face_id, detection_id):
     if nearest_neighbors and nearest_neighbors.docs:
         identity = nearest_neighbors.docs[0].id
@@ -133,11 +117,6 @@ def crop_faces(location_id, all_faces_list, datetime_obj):
         )
         db.session.add(new_detection)
         db.session.commit()
-
-        # update = {
-        #     "detection_id": new_detection.id,
-        #     "location_id": location_id
-        # }
 
         detection_dict = {
             "id": new_detection.id,

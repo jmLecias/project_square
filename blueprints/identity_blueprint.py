@@ -57,6 +57,26 @@ def get_image_presigned_url(unique_key):
         return jsonify({'error': 'AWS credentials not found'}), 401
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    
+
+@identity_blueprint.route('/get-user-image/<string:user_id>', methods=['GET'])
+def get_user_image_presigned_url(user_id):
+    face_image = FaceImages.query.filter_by(user_id=user_id).first()
+
+    try:
+        params = {
+            'Bucket': BUCKET_NAME,
+            'Key': face_image.bucket_path,
+        }
+        presigned_url = s3.generate_presigned_url('get_object', Params=params, ExpiresIn=100)
+        identity_dict = {
+            "url": presigned_url,
+        }
+        return jsonify({'identity': identity_dict})
+    except NoCredentialsError:
+        return jsonify({'error': 'AWS credentials not found'}), 401
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @identity_blueprint.route('/upload', methods=['POST'])

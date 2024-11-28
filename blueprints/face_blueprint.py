@@ -5,6 +5,7 @@ from datetime import datetime
 import os
 import json
 import pytz
+import time
 from config import CAPTURES_FOLDER, DETECTIONS_FOLDER, FACE_DATABASE
 from utils.utils import NumpyArrayEncoder
 from utils.face_utils import save_captured_frames
@@ -21,15 +22,30 @@ def sse_events():
         pubsub = redis_client.pubsub()
         pubsub.subscribe("detection_events")
 
-        for message in pubsub.listen():
-            if message['type'] == 'message':  # Ignore other message types
+        pubsub.psubscribe("__keyevent@0__:expired")
+        
+        timeout = 1 
+        last_event_time = time.time()
+
+        while True:
+            message = pubsub.get_message(timeout=timeout)
+            current_time = time.time()
+
+            if current_time - last_event_time >= 10:
+                yield ":\n\n"  # Comment line for keep-alive
+                last_event_time = current_time
+
+            if message and message['type'] == 'message':  # Ignore other message types
                 yield f"data: {message['data']}\n\n"
+                last_event_time = current_time
+
+            # Prevent CPU overutilization
+            time.sleep(0.01)
 
     response = Response(
         stream_with_context(stream()),
         content_type="text/event-stream"
     )
-    # response.headers["X-Accel-Buffering"] = "no"  # Disable buffering
 
     return response
 
@@ -49,7 +65,7 @@ def recognize_faces_route():
 
     datetime_iso = request.form.get('datetime')
     datetime_obj = datetime.fromisoformat(datetime_iso.replace("Z", "+00:00"))
-
+    
     local_timezone = pytz.timezone('Asia/Manila')
     local_datetime = datetime_obj.astimezone(local_timezone)
 
@@ -76,7 +92,8 @@ def detection_record(detection_id):
         "detected_path": detection.detected_path,
         "detected_name": detection.user.user_info.full_name if detection.user and detection.user.user_info else "",
         "status": detection.status.status,
-        "identity": detection.identity_key
+        "type": detection.type.type_name if detection.type else None,
+        "image": detection.user.identity_image if detection.user and detection.user.has_identity else None
     }
     
     return jsonify({'detection': detection_dict}), 200
