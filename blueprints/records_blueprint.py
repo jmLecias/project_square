@@ -19,7 +19,7 @@ def user_records():
     if not user:
         return jsonify({'error': 'User not found'}), 404
 
-    detections_query = DetectionRecords.query.filter_by(user_id=user_id)
+    detections_query = DetectionRecords.query.filter_by(user_id=user_id).order_by(DetectionRecords.datetime.desc())  
     if not detections_query:
         return jsonify({'error': 'No detections found for this user'}), 404
 
@@ -30,6 +30,7 @@ def user_records():
 
     detections = [
         {
+            'origin': detection.origin_path, 
             'detection': detection.detected_path, 
             'datetime': detection.datetime, 
             'location': detection.location.location_name, 
@@ -67,7 +68,7 @@ def location_records():
     if not location:
         return jsonify({'error': 'Location not found'}), 404
 
-    detections_query = DetectionRecords.query.filter_by(location_id=location_id)
+    detections_query = DetectionRecords.query.filter_by(location_id=location_id).order_by(DetectionRecords.datetime.desc())  
     if not detections_query:
         return jsonify({'error': 'No detections found for this user'}), 404
 
@@ -78,6 +79,7 @@ def location_records():
 
     detections = [
         {
+            'origin': detection.origin_path, 
             'detection': detection.detected_path, 
             'datetime': detection.datetime, 
             'location': detection.location.location_name, 
@@ -116,7 +118,7 @@ def location_user_records():
     if not location:
         return jsonify({'error': 'Location not found'}), 404
 
-    detections_query = DetectionRecords.query.filter_by(location_id=location_id, user_id=user_id)
+    detections_query = DetectionRecords.query.filter_by(location_id=location_id, user_id=user_id).order_by(DetectionRecords.datetime.desc())  
     if not detections_query:
         return jsonify({'error': 'No detections found for this user'}), 404
 
@@ -127,6 +129,7 @@ def location_user_records():
 
     detections = [
         {
+            'origin': detection.origin_path, 
             'detection': detection.detected_path, 
             'datetime': detection.datetime, 
             'location': detection.location.location_name, 

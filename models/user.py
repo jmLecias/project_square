@@ -6,6 +6,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import boto3
 from botocore.exceptions import NoCredentialsError
 from config import *
+from datetime import datetime, date
 
 s3 = boto3.client(
     's3', 
@@ -69,23 +70,21 @@ class Users(db.Model, UserMixin):
         except Exception as e:
             print(f"Error generating presigned URL: {e}")
             return None
-    
-    def latest_detection_matches_type(self, type_id):
-        """
-        Checks if the latest detection record's type_id matches the given type_id.
-        """
-        if not self.detections:
-            return False  # No detections available
+        
+    @property
+    def detections_today(self):
+        """Returns detections recorded today."""
+        today = date.today()
+        start_of_day = datetime.combine(today, datetime.min.time())
+        end_of_day = datetime.combine(today, datetime.max.time())
+        return [d for d in self.detections if start_of_day <= d.datetime < end_of_day]
 
-        latest_detection = max(self.detections, key=lambda d: d.datetime)
-
-        return latest_detection.type_id == type_id
 
 
 class UserInfos(db.Model):
     id = db.Column(Integer, primary_key=True)
     firstname = db.Column(String(255), nullable=False)
-    middlename = db.Column(String(255), nullable=False)
+    middlename = db.Column(String(255), nullable=True)
     lastname = db.Column(String(255), nullable=False)
     user_id = db.Column(BigInteger, ForeignKey('users.id', ondelete="CASCADE"))
 
