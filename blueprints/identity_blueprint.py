@@ -7,7 +7,6 @@ from werkzeug.utils import secure_filename
 from utils.utils import NumpyArrayEncoder
 from utils.face_utils import save_captured_frames
 from tasks.identity_tasks import identity_upload, save_face_embeddings
-from redis_con import init_redis
 from config import TEMP_FOLDER
 from werkzeug.utils import secure_filename
 from models import db, UserInfos, FaceImages

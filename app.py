@@ -9,10 +9,9 @@ from dotenv import load_dotenv
 from celery import Celery, Task
 
 from flask_redis import FlaskRedis
-from celery_app import make_celery
 from utils.socket_utils import socketio
 
-from blueprints.auth_blueprint import auth_blueprint, oauth
+from blueprints.auth_blueprint import auth_blueprint
 from blueprints.face_blueprint import face_blueprint
 from blueprints.groups_blueprint import groups_blueprint
 from blueprints.locations_blueprint import locations_blueprint
@@ -30,8 +29,9 @@ def create_app():
     # app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@localhost:3306/project_square'
     # app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@172.26.127.26:3306/project_square' # Zero tier
     # app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@192.168.137.224:3306/project_square' # LNU lan
-    app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@192.168.254.100:3306/project_square' # Globe router
+    app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@192.168.254.102:3306/project_square' # Globe router
     # app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@192.168.1.13:3306/project_square' # APT
+    # app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@192.168.1.47:3306/project_square' # APT
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
     app.config['REDIS_URL'] = 'redis://localhost:6379/0'
@@ -82,7 +82,6 @@ CORS(app, resources={
 
 socketio.init_app(app)
 db.init_app(app) 
-oauth.init_app(app)
 migrate = Migrate(app, db)
 redis_client = FlaskRedis(app)
 

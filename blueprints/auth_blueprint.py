@@ -1,68 +1,9 @@
 from flask import Flask, flash, render_template, Response, request, send_file, redirect, url_for, jsonify, Blueprint
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from models import db, Users
-from authlib.integrations.flask_client import OAuth
 import os
 
 auth_blueprint = Blueprint('auth', __name__)
-
-oauth = OAuth()
-
-# Google Oauth
-google = oauth.register(
-    name='google',
-    client_id=os.getenv('CLIENT_ID'),
-    client_secret=os.getenv('CLIENT_SECRET'),
-    access_token_url='https://accounts.google.com/o/oauth2/token',
-    access_token_params=None,
-    authorize_url='https://accounts.google.com/o/oauth2/auth',
-    authorize_params=None,
-    api_base_url='https://www.googleapis.com/oauth2/v1/',
-    userinfo_endpoint='https://openidconnect.googleapis.com/v1/userinfo',
-    client_kwargs={'scope': 'openid email profile'},
-    jwks_uri="https://www.googleapis.com/oauth2/v3/certs",
-)
-
-@auth_blueprint.route('/login/google',  methods=['POST', 'GET'])
-def login_google():
-    redirect_uri = url_for('auth.authorize_google', _external=True)
-    return google.authorize_redirect(redirect_uri)
-
-@auth_blueprint.route('/authorize/google', methods=['GET'])
-def authorize_google():
-    try:
-        token = google.authorize_access_token()
-
-        if token:
-            resp = google.get('userinfo')
-            
-            if resp.status_code == 200:
-                user_info = resp.json()
-                email = user_info['email']
-                
-                # Find or create the user
-                user = Users.query.filter_by(email=email).first()
-                if not user:
-                    user = Users(email=email)
-                    db.session.add(user)
-                    db.session.commit()
-
-                login_user(user)
-
-                user_dict = {"id": user.id, "email": user.email}
-
-                return jsonify({'user': user_dict}), 200
-                # return redirect('http://localhost:3000')
-            else:
-                return jsonify({'error': 'Failed to fetch user info'}), 500
-        else:
-            return jsonify({'error': 'No token received'}), 400
-    
-    except Exception as e:
-        print(f"Error in authorize_google: {str(e)}")
-        return jsonify({"error": str(e)}), 500
-
-
 
 # Default auth 
 @auth_blueprint.route('/login', methods=['POST'])
