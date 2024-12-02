@@ -2,9 +2,7 @@ from flask import request, jsonify, Blueprint
 from flask_login import LoginManager, login_user, logout_user
 from sqlalchemy import func
 from models import db, Users, DetectionRecords
-from datetime import datetime, timedelta
-import pytz
-
+from utils.dashboard_utils import get_user_detections_days_count, get_location_detections_day_count, get_location_detections_days_count
 
 auth_blueprint = Blueprint('auth', __name__)
 
@@ -73,11 +71,6 @@ def logout():
 @auth_blueprint.route('/dashboard-data/<int:user_id>', methods=['GET'])
 def dashboard_data_route(user_id):
 
-    local_timezone = pytz.timezone('Asia/Manila')
-    now = datetime.now(local_timezone)
-    last_7_days = [(now - timedelta(days=i)).date() for i in range(6, -1, -1)]
-
-
     if not user_id:
         return jsonify({'error': 'User id is required'}), 400
 
@@ -93,44 +86,47 @@ def dashboard_data_route(user_id):
         .all()
     )
 
-    detections_by_date = (
-        DetectionRecords.query
-        .filter(
-            DetectionRecords.user_id == user_id,
-            DetectionRecords.datetime >= last_7_days[0],
-        )
-        .with_entities(
-            func.date(DetectionRecords.datetime).label("day"),
-            func.count(DetectionRecords.id).label("count"),
-        )
-        .group_by("day")
-        .all()
-    )
-
-    detections_dict = {day: count for day, count in detections_by_date}
-
-    bar_data_dict = {
-        "days": [day.strftime("%b %d") for day in last_7_days],
-        "data": [detections_dict.get(day, 0) for day in last_7_days],
-    }
-
     recent_detections = [
         {
             'id': detection.id, 
             'datetime': detection.datetime,
             'detection': detection.detected_path,
             'origin': detection.origin_path,
-            'location': detection.location.location_name
+            'location': detection.location.location_name,
+            'group': detection.location.group.group_name
         }
         for detection in detections
     ]
+
+    location_day_count = [
+        get_location_detections_day_count(location, 7)
+        for group in user.created_groups
+        for location in group.locations
+    ]
+    
+    location_days_count = [
+        get_location_detections_days_count(location, 7)
+        for group in user.created_groups
+        for location in group.locations
+    ]
+
+    doughnut_data = {
+        "locations": [
+            item["location"] for item in location_days_count
+        ],
+        "data": [
+            item["count"] for item in location_days_count
+        ]
+    }
     
     dashboard_data_dict = {
         "detections_count": len(user.detections_today), 
         "created_count": len(user.created_groups),
         "joined_count": len(user.joined_groups),
         "recent_detections": recent_detections,
-        "bar_data": bar_data_dict,
+        "bar_data": get_user_detections_days_count(user_id, 7),
+        "line_data": location_day_count,
+        "doughnut_data": doughnut_data,
     }
     
     return jsonify({'dashboard_data': dashboard_data_dict}), 200
