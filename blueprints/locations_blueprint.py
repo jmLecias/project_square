@@ -1,6 +1,6 @@
 from flask import Flask, flash, render_template, Response, request, send_file, redirect, url_for, jsonify, Blueprint
 from flask_login import current_user
-from models import db, Locations, Groups
+from models import db, Locations, Groups, DetectionRecords
 import os
 from werkzeug.security import check_password_hash
 
@@ -47,6 +47,51 @@ def group_locations(location_id):
         'cameras': cameras,
         'detections': detections,
     })
+
+@locations_blueprint.route('/location-detections', methods=['POST'])
+def location_detections_route():
+    data = request.get_json()
+    location_id = data.get('location_id')
+    page = data.get('page', 1)
+    per_page = 10
+
+    if not location_id:
+        return jsonify({'error': 'location id is required'}), 400
+    if not isinstance(page, int) or not isinstance(per_page, int):
+        return jsonify({'error': 'page and per_page must be integers'}), 400
+
+    location = Locations.query.filter_by(id=location_id).first()
+    if not location:
+        return jsonify({'error': 'Location not found'}), 404
+
+    detections_query = DetectionRecords.query.filter_by(location_id=location_id).order_by(DetectionRecords.datetime.desc())  
+    if not detections_query:
+        return jsonify({'error': 'No detections found for this user'}), 404
+
+    total_records = detections_query.count()
+    total_pages = (total_records + per_page - 1) // per_page  # Calculate total pages
+
+    paginated_detections = detections_query.offset((page - 1) * per_page).limit(per_page).all()
+    # Reverse the list to make it ascending
+    paginated_detections.reverse()
+    
+    detections = [
+        {
+            'id': detection.id, 
+            'status': detection.status.status
+        }
+        for detection in paginated_detections
+    ]
+
+    return jsonify({
+        'detections': detections,
+        'pagination': {
+            'total_records': total_records,
+            'total_pages': total_pages,
+            'current_page': page,
+            'per_page': per_page
+        }
+    }), 200
 
 
 @locations_blueprint.route('/location-records-info/<int:location_id>', methods=['GET'])

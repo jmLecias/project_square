@@ -73,7 +73,7 @@ def recognize_faces_route():
     recognize_faces_task = recognize_faces.s(location_id=location_id, group_id=group_id).set(queue='recognition')
 
     job = chain(detect_faces_task, recognize_faces_task).apply_async()
-    return jsonify({'job_id': job.id}), 201
+    return jsonify({'message': "Recognition request successful!"}), 200
 
 
 
