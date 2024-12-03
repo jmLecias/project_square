@@ -6,10 +6,10 @@ import json
 from werkzeug.utils import secure_filename
 from utils.utils import NumpyArrayEncoder
 from utils.face_utils import save_captured_frames
-from tasks.identity_tasks import identity_upload, save_face_embeddings
+from tasks.identity_tasks import identity_upload, save_face_embeddings, update_faces
 from config import TEMP_FOLDER
 from werkzeug.utils import secure_filename
-from models import db, UserInfos, FaceImages
+from models import db, UserInfos, FaceImages, Users
 import os
 import boto3
 from botocore.exceptions import NoCredentialsError
@@ -26,7 +26,20 @@ s3 = boto3.client(
 
 @identity_blueprint.route('/get/<int:user_id>', methods=['GET'])
 def get_identity_route(user_id):
+
+    user = Users.query.filter_by(id=user_id).first()
+    if not user:
+        return jsonify({'error': 'User does not exist'}), 404
+
     user_info = UserInfos.query.filter_by(user_id=user_id).first()
+
+    images = [
+        {
+            "id": face_image.id,
+            "url": face_image.presigned_url
+        }
+        for face_image in user.face_images
+    ]
 
     if user_info:
         user_info_dict = {
@@ -34,10 +47,40 @@ def get_identity_route(user_id):
             "firstname": user_info.firstname,
             "middlename": user_info.middlename,
             "lastname": user_info.lastname,
+            "images": images
         }
         return jsonify({'user_info': user_info_dict}), 200
     else:
         return jsonify({'error': "User has no user info yet!"}), 404
+
+
+@identity_blueprint.route('/update-info', methods=['POST'])
+def update():
+    data = request.json
+    user_info_id = data.get('user_info_id')
+    firstname = data.get('firstname')
+    middlename = data.get('middlename')
+    lastname = data.get('lastname')
+
+    if not user_info_id :
+        return jsonify({'error': 'User info id is required'}), 400
+
+    user_info = UserInfos.query.filter_by(id=user_info_id).first()
+    if not user_info:
+        return jsonify({'error': 'User info does not exist'}), 400
+    
+    user_info.firstname = firstname
+    user_info.middlename = middlename
+    user_info.lastname = lastname
+    
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()  
+        return jsonify({'error': 'Failed to update user info'}), 500    
+    
+    
+    return jsonify({'message': "User info updated successfully!"}), 200
 
 
 @identity_blueprint.route('/get-image/<string:unique_key>', methods=['GET'])
@@ -108,6 +151,28 @@ def identity_upload_route():
     }
     
     job = identity_upload.apply_async(args=[face_image_paths, personal_info, user_id], queue='upload')
+    
+    return jsonify({'job_id': job.id}), 201
+
+@identity_blueprint.route('/update-faces', methods=['POST'])
+def update_faces_route():
+
+    if 'faceImages' not in request.files:
+        return jsonify({'error': 'No faceImages part'}), 400
+    
+    face_images = request.files.getlist('faceImages')
+    user_id = request.form.get('user_id')
+
+    os.makedirs(TEMP_FOLDER, exist_ok=True)
+
+    face_image_paths = []
+    for face_image in face_images:
+        filename = secure_filename(face_image.filename)
+        temp_file_path = os.path.join(TEMP_FOLDER, filename)
+        face_image.save(temp_file_path)
+        face_image_paths.append(temp_file_path)
+    
+    job = update_faces.apply_async(args=[face_image_paths, user_id], queue='upload')
     
     return jsonify({'job_id': job.id}), 201
 

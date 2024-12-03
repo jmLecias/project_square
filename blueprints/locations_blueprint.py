@@ -74,7 +74,7 @@ def location_detections_route():
     paginated_detections = detections_query.offset((page - 1) * per_page).limit(per_page).all()
     # Reverse the list to make it ascending
     paginated_detections.reverse()
-    
+
     detections = [
         {
             'id': detection.id, 
@@ -153,6 +153,30 @@ def create():
 
     return jsonify({'location': location_dict}), 201
 
+
+@locations_blueprint.route('/update', methods=['POST'])
+def update():
+    data = request.json
+    location_id = data.get('location_id')
+    location_name = data.get('location_name')
+
+    if not location_name or not location_id:
+        return jsonify({'error': 'Location name and id is required'}), 400
+
+    location = Locations.query.filter_by(id=location_id).first()
+    if not location:
+        return jsonify({'error': 'Location does not exist'}), 400
+    
+    location.location_name = location_name
+    
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()  
+        return jsonify({'error': 'Failed to update location'}), 500    
+    
+    
+    return jsonify({'message': "Location updated successfully!"}), 200
 
 
 @locations_blueprint.route('/delete', methods=['POST'])
