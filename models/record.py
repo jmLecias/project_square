@@ -70,5 +70,9 @@ def seed_status():
         detection_status = DetectionStatus(id=3, status="Unknown")
         db.session.add(detection_status)
 
+    if not DetectionStatus.query.filter_by(status="Non-member").first():
+        detection_status = DetectionStatus(id=4, status="Non-member")
+        db.session.add(detection_status)
+
     db.session.commit()
     print("Detection status seeded successfully.")

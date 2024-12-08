@@ -64,9 +64,13 @@ def recognize_faces(self, faces, location_id, group_id):
                 detection_record.status_id = 2  # Recognized
                 detection_record.user_id = user.id
                 detection_record.identity_key = identity
-            else:
+            elif user and not group.is_user_in_group(user.id):
+                detection_record.status_id = 4  # Non-member
+                detection_record.user_id = user.id
+                detection_record.identity_key = identity
+            elif not user:
                 detection_record.status_id = 3  # Unknown
-                result["identity"] = None
+                result["identity"] = None # Keep identity but mark as Non-member
         else:
             print(f"Detection record with ID {detection_id} not found.")
 

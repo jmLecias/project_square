@@ -29,13 +29,13 @@ def create_app():
     # app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@localhost:3306/project_square'
     # app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@172.26.127.26:3306/project_square' # Zero tier
     # app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@192.168.137.224:3306/project_square' # LNU lan
-    # app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@192.168.254.102:3306/project_square' # Globe router
-    app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@192.168.1.12:3306/project_square' # APT
+    app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@192.168.254.105:3306/project_square' # Globe router
+    # app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@192.168.1.12:3306/project_square' # APT
     # app.config['SQLALCHEMY_DATABASE_URI'] ='mysql://root:@192.168.1.47:3306/project_square' # APT
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
     app.config['REDIS_URL'] = 'redis://localhost:6379/0'
-
+    
     login_manager = LoginManager(app)
     login_manager.init_app(app)
 

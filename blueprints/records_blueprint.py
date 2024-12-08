@@ -1,7 +1,58 @@
-from flask import jsonify, Blueprint, request
+from flask import jsonify, Blueprint, request, Response
+import pandas as pd
+from io import BytesIO
 from models import db, Users, DetectionRecords, Locations
 
 records_blueprint = Blueprint('records', __name__)
+
+@records_blueprint.route('/download-attendance/<int:location_id>',  methods=['GET'])
+def download_attendance(location_id):
+    detections = DetectionRecords.query.filter(
+        DetectionRecords.location_id == location_id,
+        db.func.date(DetectionRecords.datetime) == db.func.current_date()
+    ).order_by(DetectionRecords.datetime.asc())  .all()
+
+    if not detections:
+        return jsonify({"error": "No detections found for this location today."}), 404
+    
+    seen_user_ids = set()
+    attendance = []
+
+    for detection_record in detections:
+        if detection_record.user_id and detection_record.user_id not in seen_user_ids:
+            seen_user_ids.add(detection_record.user_id)
+            attendance.append(detection_record)
+    
+    # Sample data
+    data = [
+        {
+            "Datetime": detection_record.datetime,
+            "Group Name": detection_record.location.group.group_name,
+            "Location Name": detection_record.location.location_name,
+            "Firstname": detection_record.user.user_info.firstname if detection_record.user else None,
+            "Middlename": detection_record.user.user_info.middlename if detection_record.user else None,
+            "Lastname": detection_record.user.user_info.lastname if detection_record.user else None,
+            "Status": detection_record.status.status,
+            "Percentage": None,
+        }
+        for detection_record in attendance
+    ]
+    df = pd.DataFrame(data)
+    
+    # Save DataFrame to a BytesIO object (in-memory buffer)
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Attendance')
+    output.seek(0)  # Move the cursor to the beginning of the buffer
+    
+    # Prepare response with appropriate headers for download
+    return Response(
+        output,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": "attachment;filename=sample_data.xlsx"
+        }
+    )
 
 @records_blueprint.route('/user-records', methods=['POST'])
 def user_records():
