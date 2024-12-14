@@ -3,6 +3,7 @@ from flask_login import current_user
 from models import db, Users, Groups
 import os
 import json
+from datetime import time
 from werkzeug.security import check_password_hash
 
 groups_blueprint = Blueprint('groups', __name__)
@@ -24,6 +25,8 @@ def group_locations(group_id):
         "id": group.id, 
         "name": group.group_name,
         "code": group.group_code,
+        "start_time": group.start_time.strftime('%H:%M:%S') if group.start_time else None,
+        "end_time": group.end_time.strftime('%H:%M:%S') if group.end_time else None,
         "members_count": len(group.members),
         "locations_count": len(group.locations),
     }
@@ -90,11 +93,16 @@ def created_groups(user_id):
     })
 
 
+from datetime import time
+from sqlalchemy.exc import SQLAlchemyError
+
 @groups_blueprint.route('/create', methods=['POST'])
 def create():
     data = request.json
     group_name = data.get('group_name')
     user_id = data.get('user_id')
+    start_time_str = data.get('start_time')
+    end_time_str = data.get('end_time')
 
     if not group_name:
         return jsonify({'error': 'Group name is required'}), 400
@@ -103,21 +111,41 @@ def create():
     if not user:
         return jsonify({'error': 'User does not exist'}), 400
 
+    try:
+        start_time = (
+            time.fromisoformat(start_time_str) if start_time_str else None
+        )  
+        end_time = (
+            time.fromisoformat(end_time_str) if end_time_str else None
+        ) 
+    except ValueError:
+        return jsonify({'error': 'Invalid time format. Use HH:MM:SS'}), 400
+
     new_group = Groups(
         group_name=group_name,
-        user_id=user_id
+        user_id=user_id,
+        start_time=start_time,
+        end_time=end_time,
     )
-    
-    db.session.add(new_group)
-    db.session.commit()
-    
+
+    try:
+        db.session.add(new_group)
+        db.session.commit()
+    except SQLAlchemyError as e:
+        db.session.rollback()
+        return jsonify({'error': 'Database error', 'details': str(e)}), 500
+
+    # Prepare response
     group_dict = {
-        "id": new_group.id, 
+        "id": new_group.id,
         "name": new_group.group_name,
-        "code": new_group.group_code
+        "code": new_group.group_code,
+        "start_time": new_group.start_time.strftime('%H:%M:%S') if new_group.start_time else None,
+        "end_time": new_group.end_time.strftime('%H:%M:%S') if new_group.end_time else None,
     }
 
     return jsonify({'group': group_dict}), 201
+
 
 
 @groups_blueprint.route('/join', methods=['POST'])
@@ -160,6 +188,9 @@ def update():
     data = request.json
     new_group_name = data.get('new_group_name')
     group_id = data.get('group_id')
+    start_time_str = data.get('start_time')
+    end_time_str = data.get('end_time')
+
 
     if not new_group_name:
         return jsonify({'error': 'Group name is required'}), 400
@@ -167,8 +198,20 @@ def update():
     group = Groups.query.filter_by(id=group_id).first()
     if not group:
         return jsonify({'error': 'Group does not exist'}), 400
+    
+    try:
+        start_time = (
+            time.fromisoformat(start_time_str) if start_time_str else None
+        )  
+        end_time = (
+            time.fromisoformat(end_time_str) if end_time_str else None
+        ) 
+    except ValueError:
+        return jsonify({'error': 'Invalid time format. Use HH:MM:SS'}), 400
 
     group.group_name = new_group_name
+    group.start_time = start_time
+    group.end_time = end_time
     
     try:
         db.session.commit()
@@ -179,7 +222,10 @@ def update():
     group_dict = {
         "id": group.id, 
         "name": group.group_name,
-        "code": group.group_code
+        "code": group.group_code,
+        "start_time": group.start_time.strftime('%H:%M:%S') if group.start_time else None,
+        "end_time": group.end_time.strftime('%H:%M:%S') if group.end_time else None,
+
     }
     
     return jsonify({'group': group_dict}), 200

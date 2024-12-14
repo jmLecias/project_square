@@ -1,5 +1,5 @@
 from . import db
-from sqlalchemy import Column, Integer, String, BigInteger, ForeignKey, Table
+from sqlalchemy import Column, Integer, String, BigInteger, ForeignKey, Table, Time
 from sqlalchemy.orm import relationship
 import secrets
 import string
@@ -15,6 +15,8 @@ class Groups(db.Model):
     group_name = db.Column(String(100), nullable=False)
     user_id = db.Column(BigInteger, ForeignKey('users.id'))
     group_code = db.Column(String(6), unique=True, nullable=False)
+    start_time = db.Column(Time, nullable=True)
+    end_time = db.Column(Time, nullable=True) 
     
     owner = relationship('Users', back_populates='created_groups')
     members = relationship('Users', secondary='group_user')
@@ -23,9 +25,11 @@ class Groups(db.Model):
     def __repr__(self):
         return f'<Group {self.group_name}>'
 
-    def __init__(self, group_name, user_id):
+    def __init__(self, group_name, user_id, start_time=None, end_time=None):
         self.group_name = group_name
         self.user_id = user_id
+        self.start_time = start_time
+        self.end_time = end_time
         self.generate_group_code()
 
     def generate_group_code(self):
