@@ -2,6 +2,8 @@ from flask import jsonify, Blueprint, request, Response
 import pandas as pd
 from io import BytesIO
 from models import db, Users, DetectionRecords, Locations
+from datetime import datetime
+import pytz
 
 records_blueprint = Blueprint('records', __name__)
 
@@ -60,6 +62,11 @@ def user_records():
     user_id = data.get('user_id')
     page = data.get('page', 1)
     per_page = data.get('per_page', 10)
+    specific_date = data.get('date') 
+
+    specific_date = datetime.fromisoformat(specific_date.replace("Z", "+00:00")) if specific_date else None
+    local_timezone = pytz.timezone('Asia/Manila')
+    local_datetime = specific_date.astimezone(local_timezone) if specific_date else None
 
     if not user_id:
         return jsonify({'error': 'user_id is required'}), 400
@@ -70,10 +77,16 @@ def user_records():
     if not user:
         return jsonify({'error': 'User not found'}), 404
 
-    detections_query = DetectionRecords.query.filter_by(user_id=user_id).order_by(DetectionRecords.datetime.desc())  
+    detections_query = DetectionRecords.query.filter_by(user_id=user_id)
     if not detections_query:
         return jsonify({'error': 'No detections found for this user'}), 404
-
+    
+    if local_datetime:
+        detections_query = detections_query.filter(
+            db.func.date(DetectionRecords.datetime) == local_datetime.date()
+        )
+    
+    detections_query = detections_query.order_by(DetectionRecords.datetime.desc())
     total_records = detections_query.count()
     total_pages = (total_records + per_page - 1) // per_page  # Calculate total pages
 
@@ -109,6 +122,11 @@ def location_records():
     location_id = data.get('location_id')
     page = data.get('page', 1)
     per_page = data.get('per_page', 10)
+    specific_date = data.get('date') 
+
+    specific_date = datetime.fromisoformat(specific_date.replace("Z", "+00:00")) if specific_date else None
+    local_timezone = pytz.timezone('Asia/Manila')
+    local_datetime = specific_date.astimezone(local_timezone) if specific_date else None
 
     if not location_id:
         return jsonify({'error': 'location id is required'}), 400
@@ -119,10 +137,16 @@ def location_records():
     if not location:
         return jsonify({'error': 'Location not found'}), 404
 
-    detections_query = DetectionRecords.query.filter_by(location_id=location_id).order_by(DetectionRecords.datetime.desc())  
+    detections_query = DetectionRecords.query.filter_by(location_id=location_id)  
     if not detections_query:
         return jsonify({'error': 'No detections found for this user'}), 404
+    
+    if local_datetime:
+        detections_query = detections_query.filter(
+            db.func.date(DetectionRecords.datetime) == local_datetime.date()
+        )
 
+    detections_query = detections_query.order_by(DetectionRecords.datetime.desc())
     total_records = detections_query.count()
     total_pages = (total_records + per_page - 1) // per_page  # Calculate total pages
 
@@ -159,6 +183,11 @@ def location_user_records():
     user_id = data.get('user_id')
     page = data.get('page', 1)
     per_page = data.get('per_page', 10)
+    specific_date = data.get('date') 
+
+    specific_date = datetime.fromisoformat(specific_date.replace("Z", "+00:00")) if specific_date else None
+    local_timezone = pytz.timezone('Asia/Manila')
+    local_datetime = specific_date.astimezone(local_timezone) if specific_date else None
 
     if not location_id:
         return jsonify({'error': 'location id is required'}), 400
@@ -169,10 +198,16 @@ def location_user_records():
     if not location:
         return jsonify({'error': 'Location not found'}), 404
 
-    detections_query = DetectionRecords.query.filter_by(location_id=location_id, user_id=user_id).order_by(DetectionRecords.datetime.desc())  
+    detections_query = DetectionRecords.query.filter_by(location_id=location_id, user_id=user_id)
     if not detections_query:
         return jsonify({'error': 'No detections found for this user'}), 404
 
+    if local_datetime:
+        detections_query = detections_query.filter(
+            db.func.date(DetectionRecords.datetime) == local_datetime.date()
+        )
+
+    detections_query = detections_query.order_by(DetectionRecords.datetime.desc())
     total_records = detections_query.count()
     total_pages = (total_records + per_page - 1) // per_page  # Calculate total pages
 
