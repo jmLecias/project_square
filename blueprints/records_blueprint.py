@@ -2,30 +2,88 @@ from flask import jsonify, Blueprint, request, Response
 import pandas as pd
 from io import BytesIO
 from models import db, Users, DetectionRecords, Locations
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
 
 records_blueprint = Blueprint('records', __name__)
 
-@records_blueprint.route('/download-attendance/<int:location_id>',  methods=['GET'])
-def download_attendance(location_id):
-    detections = DetectionRecords.query.filter(
-        DetectionRecords.location_id == location_id,
-        db.func.date(DetectionRecords.datetime) == db.func.current_date()
-    ).order_by(DetectionRecords.datetime.asc())  .all()
+@records_blueprint.route('/download-attendance',  methods=['POST'])
+def download_attendance():
+    data = request.get_json()
+    location_id = data.get('location_id')
+    specific_date = data.get('date') 
 
+    specific_date = datetime.fromisoformat(specific_date.replace("Z", "+00:00")) if specific_date else None
+    local_timezone = pytz.timezone('Asia/Manila')
+    local_datetime = specific_date.astimezone(local_timezone) if specific_date else None
+
+    group = Locations.query.filter_by(id=location_id).first().group
+    
+    detections = DetectionRecords.query.filter_by(location_id=location_id)
+
+    if local_datetime:
+        detections = detections.filter(
+            db.func.date(DetectionRecords.datetime) == local_datetime.date()
+        )
+    else:
+        detections = detections.filter(
+            db.func.date(DetectionRecords.datetime) == db.func.current_date()
+        )
+        
+    detections = detections.order_by(DetectionRecords.datetime.asc()).all()
     if not detections:
-        return jsonify({"error": "No detections found for this location today."}), 404
+        error_message = "No detections found for this location on the specified date." if specific_date else "No detections found for this location today."
+        return jsonify({"error": error_message}), 404
     
     seen_user_ids = set()
     attendance = []
+    percentages = {}
+    total_times = {}
+    total_seconds= {}
+    schedule_duration = ""
 
     for detection_record in detections:
         if detection_record.user_id and detection_record.user_id not in seen_user_ids:
             seen_user_ids.add(detection_record.user_id)
             attendance.append(detection_record)
-    
-    # Sample data
+
+    # To get percentages of user attendance from group schedule duration
+    for seen_user_id in seen_user_ids:
+        if group.has_schedule:
+            group_schedule_duration = (
+                datetime.combine(datetime.min, group.end_time) -
+                datetime.combine(datetime.min, group.start_time)
+            ).total_seconds()
+
+            group_schedule_duration_td = timedelta(seconds=group_schedule_duration)
+            s_hours, s_remainder = divmod(group_schedule_duration_td.seconds, 3600)
+            s_minutes, s_seconds = divmod(s_remainder, 60)
+            schedule_duration = f"{int(s_hours):02}:{int(s_minutes):02}:{int(s_seconds):02}"
+
+            user_detections = DetectionRecords.query.filter_by(user_id=seen_user_id, location_id=location_id)
+            user_detections = user_detections.filter(
+                db.func.time(DetectionRecords.datetime) >= group.start_time,
+                db.func.time(DetectionRecords.datetime) <= group.end_time
+            )
+            user_detections = user_detections.order_by(DetectionRecords.datetime.asc()).all()
+
+            time_difference = 0
+            if user_detections: 
+                first_detection_time = user_detections[0].datetime
+                last_detection_time = user_detections[-1].datetime
+                time_difference = (last_detection_time - first_detection_time).total_seconds()
+
+            if group_schedule_duration > 0:  # Avoid division by zero
+                percentages[seen_user_id] = round((time_difference / group_schedule_duration) * 100, 2)
+                total_seconds[seen_user_id] = time_difference
+                
+                time_difference_td = timedelta(seconds=time_difference)
+                hours, remainder = divmod(time_difference_td.seconds, 3600)
+                minutes, seconds = divmod(remainder, 60)
+
+                total_times[seen_user_id] = f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
+
+    # Excel data columns
     data = [
         {
             "Datetime": detection_record.datetime,
@@ -35,7 +93,10 @@ def download_attendance(location_id):
             "Middlename": detection_record.user.user_info.middlename if detection_record.user else None,
             "Lastname": detection_record.user.user_info.lastname if detection_record.user else None,
             "Status": detection_record.status.status,
-            "Percentage": None,
+            "Schedule Duration": schedule_duration if group.has_schedule else "N/A",
+            "Total Time": total_times.get(detection_record.user.id) if group.has_schedule else "N/A",
+            "Total Seconds": total_seconds.get(detection_record.user.id) if group.has_schedule else "N/A",
+            "Percentage": percentages.get(detection_record.user.id) if group.has_schedule else "No set schedule",
         }
         for detection_record in attendance
     ]

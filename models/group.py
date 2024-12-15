@@ -52,3 +52,8 @@ class Groups(db.Model):
 
         # Check if the user is in the members list
         return any(member.id == user_id for member in self.members)
+
+    @property
+    def has_schedule(self):
+        """Returns True if group has start_time and end_time."""
+        return self.start_time is not None and self.end_time is not None
