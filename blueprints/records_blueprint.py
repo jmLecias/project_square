@@ -40,6 +40,7 @@ def download_attendance():
     percentages = {}
     total_times = {}
     total_seconds= {}
+    time_in_out = {}
     schedule_duration = ""
 
     for detection_record in detections:
@@ -73,6 +74,8 @@ def download_attendance():
                 last_detection_time = user_detections[-1].datetime
                 time_difference = (last_detection_time - first_detection_time).total_seconds()
 
+                time_in_out[seen_user_id] = {"time_in": first_detection_time, "time_out": last_detection_time}
+
             if group_schedule_duration > 0:  # Avoid division by zero
                 percentages[seen_user_id] = round((time_difference / group_schedule_duration) * 100, 2)
                 total_seconds[seen_user_id] = time_difference
@@ -95,6 +98,8 @@ def download_attendance():
             "Status": detection_record.status.status,
             "Schedule Duration": schedule_duration if group.has_schedule else "N/A",
             "Total Time": total_times.get(detection_record.user.id) if group.has_schedule else "N/A",
+            "Time in": time_in_out.get(detection_record.user.id).get("time_in")if group.has_schedule else "N/A",
+            "Time out": time_in_out.get(detection_record.user.id).get("time_out")if group.has_schedule else "N/A",
             "Total Seconds": total_seconds.get(detection_record.user.id) if group.has_schedule else "N/A",
             "Percentage": percentages.get(detection_record.user.id) if group.has_schedule else "No set schedule",
         }
