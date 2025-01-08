@@ -4,7 +4,7 @@ from deepface import DeepFace
 import cv2
 from werkzeug.utils import secure_filename
 import numpy as np
-from config import DETECTIONS_FOLDER
+from config import DETECTIONS_FOLDER, TEMP_FOLDER
 from redis.commands.search.query import Query
 from utils.redis_utils import redis_db, redis_client
 from utils.db_utils import initialize_db
@@ -36,6 +36,26 @@ def use_recognition_model(face, face_database_path):
     return recognition_result
 
 
+def augment_in_labspace(image):
+    # Convert the image to Lab space
+    lab_image = cv2.cvtColor(image, cv2.COLOR_BGR2Lab)
+    
+    # Split into L, a, b channels
+    L, a, b = cv2.split(lab_image)
+    
+    # - Adjust brightness by modifying the L channel
+    L = cv2.normalize(L, None, alpha=255, beta=0, norm_type=cv2.NORM_MINMAX)
+    # - Slight noise to a and b channels
+    a = cv2.add(a, np.random.normal(0, 5, a.shape).astype(np.uint8))
+    b = cv2.add(b, np.random.normal(0, 5, b.shape).astype(np.uint8))
+    
+    # Merge channels back and convert to BGR
+    augmented_image = cv2.merge([L, a, b])
+    augmented_image = cv2.cvtColor(augmented_image, cv2.COLOR_Lab2BGR)
+    
+    return augmented_image
+
+
 def make_query_vector(face):
     face_path = face['face_path']
         
@@ -53,6 +73,36 @@ def make_query_vector(face):
     }
     
     return result
+
+#  WITH AUGMENTATION
+# def make_query_vector(face):
+#     face_path = face['face_path']
+    
+#     image = cv2.imread(face_path)
+#     if image is None:
+#         raise ValueError(f"Unable to load image from {face_path}")
+    
+#     augmented_image = augment_in_labspace(image)
+    
+#     # Save the augmented image to a temporary path (or directly convert to RGB)
+#     temp_path =  os.path.join(TEMP_FOLDER, "temp_augmented.jpg")
+#     cv2.imwrite(temp_path, augmented_image)
+    
+#     # Extract embedding using the augmented image
+#     target_embedding = DeepFace.represent(
+#         img_path=temp_path,
+#         model_name="ArcFace",
+#         enforce_detection=False, 
+#         detector_backend="skip"  
+#     )[0]["embedding"]
+
+#     query_vector = np.array(target_embedding).astype(np.float32).tobytes()
+    
+#     result = {
+#         "face_vector": query_vector,
+#     }
+    
+#     return result
 
 
 def get_nearest_neighbors(query_vector, k):

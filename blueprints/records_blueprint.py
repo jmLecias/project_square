@@ -30,7 +30,7 @@ def download_attendance():
             db.func.date(DetectionRecords.datetime) == db.func.current_date()
         )
         
-    detections = detections.order_by(DetectionRecords.datetime.asc()).all()
+    # detections = detections.order_by(DetectionRecords.datetime.asc())
     if not detections:
         error_message = "No detections found for this location on the specified date." if specific_date else "No detections found for this location today."
         return jsonify({"error": error_message}), 404
@@ -61,7 +61,7 @@ def download_attendance():
             s_minutes, s_seconds = divmod(s_remainder, 60)
             schedule_duration = f"{int(s_hours):02}:{int(s_minutes):02}:{int(s_seconds):02}"
 
-            user_detections = DetectionRecords.query.filter_by(user_id=seen_user_id, location_id=location_id)
+            user_detections = detections.filter_by(user_id=seen_user_id) # Detections on the 'specific_date'
             user_detections = user_detections.filter(
                 db.func.time(DetectionRecords.datetime) >= group.start_time,
                 db.func.time(DetectionRecords.datetime) <= group.end_time
