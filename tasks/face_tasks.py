@@ -4,7 +4,7 @@ import cv2
 import json
 from celery import shared_task
 from config import DETECTIONS_FOLDER
-from models import db, DetectionRecords, FaceImages, Groups
+from models import db, DetectionRecords, FaceImages, Groups, Cameras
 
 from utils.face_utils import *
 from utils.redis_utils import redis_db, redis_client
@@ -13,11 +13,13 @@ from utils.db_utils import initialize_db
 initialize_db()
 
 @shared_task(bind=True)
-def recognize_faces(self, faces, location_id, group_id):
+def recognize_faces(self, faces, location_id, group_id, camera_id):
     results = []
     max_confidences = {} # temp holder for max accuracy of each detected identity
     face_results = {} # temp holder for knn results of each detected face
     
+    camera = Cameras.query.filter_by(id=camera_id).first()
+
     for face in faces:
         detection_id = face["detection_id"]
         face_id = face["face_id"]
@@ -80,7 +82,9 @@ def recognize_faces(self, faces, location_id, group_id):
         detection_dict = {
             "id": detection_record.id,
             'status': detection_record.status.status,
-            "location_id": location_id
+            "location_id": location_id,
+            "confidence": confidence,
+            "camera_name": camera.camera_name
         }
 
         redis_client.publish("detection_events", json.dumps(detection_dict))

@@ -62,6 +62,7 @@ def recognize_faces_route():
 
     location_id = request.form.get('location_id')
     group_id = request.form.get('group_id')
+    camera_id = request.form.get('camera_id')
 
     datetime_iso = request.form.get('datetime')
     datetime_obj = datetime.fromisoformat(datetime_iso.replace("Z", "+00:00"))
@@ -70,7 +71,7 @@ def recognize_faces_route():
     local_datetime = datetime_obj.astimezone(local_timezone)
 
     detect_faces_task = detect_faces.s(location_id, captured_frames_list, local_datetime).set(queue='detection')
-    recognize_faces_task = recognize_faces.s(location_id=location_id, group_id=group_id).set(queue='recognition')
+    recognize_faces_task = recognize_faces.s(location_id=location_id, group_id=group_id, camera_id=camera_id).set(queue='recognition')
 
     job = chain(detect_faces_task, recognize_faces_task).apply_async()
     return jsonify({'message': "Recognition request successful!"}), 200
